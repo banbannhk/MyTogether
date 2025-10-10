@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mytogether-postgres
+    environment:
+      POSTGRES_DB: mytogether
+      POSTGRES_USER: mytogetheruser
+      POSTGRES_PASSWORD: mytogetherpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mytogether-network
+
+volumes:
+  postgres_data:
+
+networks:
+  mytogether-network:
+    driver: bridge
