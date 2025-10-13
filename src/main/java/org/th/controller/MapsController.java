@@ -66,9 +66,10 @@ public class MapsController {
     @GetMapping("/train-route")
     public ResponseEntity<ApiResponse<JsonNode>> getTrainRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId) {
 
-        JsonNode result = mapsService.getTrainRoute(origin, destination);
+        JsonNode result = mapsService.getTrainRoute(origin, destination, deviceId);
         return ResponseEntity.ok(
                 ApiResponse.success("Train/Subway route retrieved successfully", result)
         );

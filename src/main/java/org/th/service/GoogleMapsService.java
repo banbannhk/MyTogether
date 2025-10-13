@@ -2,6 +2,7 @@ package org.th.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,12 @@ public class GoogleMapsService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private DeviceTrackingService deviceTrackingService;
+
+    @Autowired
+    private HttpServletRequest request;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -168,7 +175,7 @@ public class GoogleMapsService {
     /**
      * Get TRAIN/SUBWAY-only route (BTS/MRT)
      */
-    public JsonNode getTrainRoute(String origin, String destination) {
+    public JsonNode getTrainRoute(String origin, String destination, String deviceId) {
         logger.info("Fetching TRAIN/SUBWAY route from {} to {}", origin, destination);
 
         Map<String, String> trainParams = new HashMap<>();
@@ -176,7 +183,24 @@ public class GoogleMapsService {
         trainParams.put("transit_routing_preference", "less_walking");
         trainParams.put("departure_time", "now");
 
-        return getDirections(origin, destination, "transit", true, trainParams);
+        JsonNode routeData = getDirections(origin, destination, "transit", true, trainParams);
+
+        // 2. Extract route details
+        RouteDetails details = extractRouteDetails(routeData);
+        details.routeType = "TRAIN"; // Specify it's train/subway
+
+        // 3. Fire-and-forget async tracking (NON-BLOCKING)
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        deviceTrackingService.trackDeviceAndRouteAsync(
+                deviceId, origin, destination,
+                details.routeType, details.transitMode,
+                details.distanceKm, details.durationMinutes,
+                details.fareAmount, ipAddress, userAgent
+        );
+
+        return routeData;
     }
 
     /**
@@ -288,7 +312,7 @@ public class GoogleMapsService {
                 extraParams.forEach(builder::queryParam);
             }
 
-            String url = builder.toUriString();
+            String url = builder.build().toUriString();
 
             logger.debug("Calling Google Maps API: {}", url.replace(apiKey, "***"));
 
@@ -324,6 +348,61 @@ public class GoogleMapsService {
             logger.error("Unexpected error processing Google Maps response", e);
             throw new GoogleMapsException("Error processing Google Maps response: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Extract route details helper
+     */
+    private RouteDetails extractRouteDetails(JsonNode routeData) {
+        RouteDetails details = new RouteDetails();
+        details.routeType = "TRANSIT";
+
+        if (routeData.has("routes") && !routeData.get("routes").isEmpty()) {
+            JsonNode route = routeData.get("routes").get(0);
+
+            if (route.has("legs") && !route.get("legs").isEmpty()) {
+                JsonNode leg = route.get("legs").get(0);
+
+                // Extract distance
+                if (leg.has("distance")) {
+                    details.distanceKm = leg.get("distance").get("value").asDouble() / 1000.0;
+                }
+
+                // Extract duration
+                if (leg.has("duration")) {
+                    details.durationMinutes = leg.get("duration").get("value").asInt() / 60;
+                }
+
+                // Extract transit mode
+                if (leg.has("steps")) {
+                    for (JsonNode step : leg.get("steps")) {
+                        if (step.has("transit_details")) {
+                            JsonNode vehicle = step.get("transit_details").get("line").get("vehicle");
+                            details.transitMode = vehicle.get("type").asText();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Extract fare
+            if (route.has("fare")) {
+                details.fareAmount = route.get("fare").get("value").asDouble();
+            }
+        }
+
+        return details;
+    }
+
+    /**
+     * Helper class for route details
+     */
+    private static class RouteDetails {
+        String routeType;
+        String transitMode;
+        Double distanceKm;
+        Integer durationMinutes;
+        Double fareAmount;
     }
 
 }
