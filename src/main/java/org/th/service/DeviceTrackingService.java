@@ -1,6 +1,7 @@
 // File: src/main/java/org/th/service/DeviceTrackingService.java
 package org.th.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.th.config.DeviceLockManager;
+import org.th.dto.RouteDetailsHelper;
 import org.th.entity.DeviceInfo;
 import org.th.entity.RouteUsage;
 import org.th.repository.DeviceInfoRepository;
@@ -16,8 +19,6 @@ import org.th.repository.RouteUsageRepository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -33,34 +34,7 @@ public class DeviceTrackingService {
     private RouteUsageRepository routeUsageRepository;
 
     @Autowired
-    private HttpServletRequest request;
-
-    public CompletableFuture<String> trackDeviceAndRouteAsync(
-            String deviceId, String origin, String destination,
-            String routeType, String transitMode,
-            Double distanceKm, Integer durationMinutes,
-            Double fareAmount, String ipAddress, String userAgent) {
-
-        try {
-            logger.debug("🔄 [ASYNC] Starting background tracking for device: {}", deviceId);
-
-            // VALIDATE: deviceId is REQUIRED
-            if (deviceId == null || deviceId.isEmpty()) {
-                throw new IllegalArgumentException("deviceId is required");
-            }
-
-            trackDeviceInfoAndRoute(deviceId, origin, destination,
-                    routeType, transitMode,
-                    distanceKm, durationMinutes,
-                    fareAmount, ipAddress, userAgent);
-
-            return CompletableFuture.completedFuture(deviceId);
-
-        } catch (Exception e) {
-            logger.error("❌ [ASYNC] Error tracking device and route: {}", e.getMessage());
-            return CompletableFuture.completedFuture(deviceId != null ? deviceId : "unknown");
-        }
-    }
+    private DeviceLockManager deviceLockManager;
 
     /**
      * ASYNC: Track device and route in background thread
@@ -68,11 +42,14 @@ public class DeviceTrackingService {
      */
     @Async("trackingExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    private void trackDeviceInfoAndRoute(String deviceId, String origin, String destination, String routeType, String transitMode, Double distanceKm, Integer durationMinutes, Double fareAmount, String ipAddress, String userAgent) {
+    public void trackDeviceAndRouteAsync(String deviceId, String origin, String destination,
+                                         String routeType,String ipAddress, String userAgent, JsonNode routeData) {
+
         // Get lock for this specific device
         ReentrantLock lock = deviceLockManager.getLock(deviceId);
 
         // Use try-with-resources pattern with LockResource
+        int LOCK_TIMEOUT_SECONDS = 10;
         try (LockResource lockResource = new LockResource(lock, deviceId, LOCK_TIMEOUT_SECONDS)) {
 
             if (!lockResource.isAcquired()) {
@@ -81,13 +58,16 @@ public class DeviceTrackingService {
                 throw new RuntimeException("Could not acquire lock for device tracking");
             }
 
+            RouteDetailsHelper details = new RouteDetailsHelper(routeData);
+            details.setRouteType(routeType);
+
             logger.info("🔒 [LOCKED] Thread {} acquired lock for device {}",
                     Thread.currentThread().getName(), deviceId);
 
             // ===== CRITICAL SECTION (Protected by lock) =====
 
             // 1. Save/Update device info
-            DeviceInfo deviceInfo = trackOrUpdateDevice(deviceId);
+            DeviceInfo deviceInfo = trackOrUpdateDevice(deviceId, ipAddress, userAgent);
 
             // 2. Save route usage
             RouteUsage routeUsage = new RouteUsage();
@@ -95,16 +75,13 @@ public class DeviceTrackingService {
             routeUsage.setOrigin(origin);
             routeUsage.setDestination(destination);
             routeUsage.setRouteType(routeType);
-            routeUsage.setTransitMode(transitMode);
-            routeUsage.setDistanceKm(distanceKm);
-            routeUsage.setDurationMinutes(durationMinutes);
-            routeUsage.setFareAmount(fareAmount);
+            routeUsage.setTransitMode(details.getTransitMode());
+            routeUsage.setDistanceKm(details.getDistanceKm());
+            routeUsage.setDurationMinutes(details.getDurationMinutes());
+            routeUsage.setFareAmount(details.getFareAmount());
             routeUsage.setIpAddress(ipAddress);
 
             routeUsageRepository.save(routeUsage);
-
-            logger.info("✅ [TRANSACTION] Saved device {} and route {} -> {}",
-                    deviceInfo.getDeviceId(), origin, destination);
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -116,45 +93,48 @@ public class DeviceTrackingService {
                     deviceId, e.getMessage(), e);
             throw new RuntimeException("Failed to save device and route", e);
         }
-        // Lock is automatically released here by LockResource.close()
     }
 
     /**
      * SYNC: Track device (use when you need immediate response with deviceId)
      */
-    public DeviceInfo trackOrUpdateDevice(String deviceId) {
-        String ipAddress = getClientIpAddress(request);
-        String userAgent = request.getHeader("User-Agent");
-
-        return trackOrUpdateDeviceInternal(deviceId, ipAddress, userAgent);
-    }
+//    public DeviceInfo trackOrUpdateDevice(String deviceId, String ipAddress, String userAgent) {
+//        return trackOrUpdateDeviceInternal(deviceId, ipAddress, userAgent);
+//    }
 
     /**
      * Internal method to track/update device
      */
-    private DeviceInfo trackOrUpdateDeviceInternal(String deviceId, String ipAddress, String userAgent) {
+    private DeviceInfo trackOrUpdateDevice(String deviceId, String ipAddress, String userAgent) {
 
-        // Check if device exists
-        Optional<DeviceInfo> existingDevice = deviceInfoRepository.findByDeviceId(deviceId);
+        logger.info("START :: trackOrUpdateDevice(String deviceId : {}, String ipAddress : {}, String userAgent : {})",
+                deviceId, ipAddress, userAgent);
+        try {
+            // Check if device exists
+            Optional<DeviceInfo> existingDevice = deviceInfoRepository.findByDeviceId(deviceId);
 
-        DeviceInfo deviceInfo;
-        if (existingDevice.isPresent()) {
-            // Update existing device
-            deviceInfo = existingDevice.get();
-            deviceInfo.setLastSeen(LocalDateTime.now());
-        } else {
-            // Create new device
-            deviceInfo = new DeviceInfo();
-            deviceInfo.setDeviceId(deviceId);
+            DeviceInfo deviceInfo;
+            if (existingDevice.isPresent()) {
+                // Update existing device
+                deviceInfo = existingDevice.get();
+                deviceInfo.setLastSeen(LocalDateTime.now());
+            } else {
+                // Create new device
+                deviceInfo = new DeviceInfo();
+                deviceInfo.setDeviceId(deviceId);
+            }
+
+            deviceInfo.setUserAgent(userAgent);
+            deviceInfo.setIpAddress(ipAddress);
+
+            // Parse user agent
+            parseUserAgent(userAgent, deviceInfo);
+
+            return deviceInfoRepository.save(deviceInfo);
+        } finally {
+            logger.info("END :: trackOrUpdateDevice(String deviceId : {}, String ipAddress : {}, String userAgent : {})",
+                    deviceId, ipAddress, userAgent);
         }
-
-        deviceInfo.setUserAgent(userAgent);
-        deviceInfo.setIpAddress(ipAddress);
-
-        // Parse user agent
-        parseUserAgent(userAgent, deviceInfo);
-
-        return deviceInfoRepository.save(deviceInfo);
     }
 
     /**

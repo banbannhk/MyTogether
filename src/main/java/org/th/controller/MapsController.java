@@ -1,7 +1,9 @@
 package org.th.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.servlet.http.HttpServletRequest;
 import org.th.dto.ApiResponse;
+import org.th.service.DeviceTrackingService;
 import org.th.service.GoogleMapsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,9 @@ public class MapsController {
 
     @Autowired
     private GoogleMapsService mapsService;
+
+    @Autowired
+    private DeviceTrackingService deviceTrackingService;
 
     /**
      * Health check endpoint
@@ -36,9 +41,14 @@ public class MapsController {
     @GetMapping("/transit-route")
     public ResponseEntity<ApiResponse<JsonNode>> getTransitRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
-        JsonNode result = mapsService.getTransitRoute(origin, destination);
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        JsonNode result = mapsService.getTransitRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.success("Transit route retrieved successfully", result)
         );
@@ -51,9 +61,14 @@ public class MapsController {
     @GetMapping("/bus-route")
     public ResponseEntity<ApiResponse<JsonNode>> getBusRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
-        JsonNode result = mapsService.getBusRoute(origin, destination);
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        JsonNode result = mapsService.getBusRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.success("Bus route retrieved successfully", result)
         );
@@ -67,9 +82,13 @@ public class MapsController {
     public ResponseEntity<ApiResponse<JsonNode>> getTrainRoute(
             @RequestParam String origin,
             @RequestParam String destination,
-            @RequestParam String deviceId) {
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
-        JsonNode result = mapsService.getTrainRoute(origin, destination, deviceId);
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        JsonNode result = mapsService.getTrainRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.success("Train/Subway route retrieved successfully", result)
         );
@@ -82,7 +101,9 @@ public class MapsController {
     @GetMapping("/detailed-transit-route")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDetailedTransitRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
         Map<String, Object> result = mapsService.getDetailedTransitRoute(origin, destination);
         return ResponseEntity.ok(
@@ -97,9 +118,14 @@ public class MapsController {
     @GetMapping("/driving-route")
     public ResponseEntity<ApiResponse<JsonNode>> getDrivingRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
-        JsonNode result = mapsService.getDrivingRoute(origin, destination);
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        JsonNode result = mapsService.getDrivingRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.success("Driving route retrieved successfully", result)
         );
@@ -112,9 +138,14 @@ public class MapsController {
     @GetMapping("/walking-route")
     public ResponseEntity<ApiResponse<JsonNode>> getWalkingRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
-        JsonNode result = mapsService.getWalkingRoute(origin, destination);
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        JsonNode result = mapsService.getWalkingRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.success("Walking route retrieved successfully", result)
         );
@@ -127,9 +158,14 @@ public class MapsController {
     @GetMapping("/bicycling-route")
     public ResponseEntity<ApiResponse<JsonNode>> getBicyclingRoute(
             @RequestParam String origin,
-            @RequestParam String destination) {
+            @RequestParam String destination,
+            @RequestParam String deviceId,
+            HttpServletRequest request) {
 
-        JsonNode result = mapsService.getBicyclingRoute(origin, destination);
+        String ipAddress = deviceTrackingService.getClientIpAddress(request);
+        String userAgent = request.getHeader("User-Agent");
+
+        JsonNode result = mapsService.getBicyclingRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
                 ApiResponse.success("Bicycling route retrieved successfully", result)
         );

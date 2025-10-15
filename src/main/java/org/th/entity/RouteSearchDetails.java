@@ -41,7 +41,7 @@ public class RouteSearchDetails {
     @Column(name = "num_transfers")
     private Integer numTransfers;
 
-    @Column(name = "walking_distance_km", precision = 10, scale = 2)
+    @Column(name = "walking_distance_km", precision = 10)
     private Double walkingDistanceKm;
 
     @Column(name = "selected")

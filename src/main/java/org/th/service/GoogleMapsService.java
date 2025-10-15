@@ -1,8 +1,8 @@
 package org.th.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +32,6 @@ public class GoogleMapsService {
     @Autowired
     private DeviceTrackingService deviceTrackingService;
 
-    @Autowired
-    private HttpServletRequest request;
-
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String DIRECTIONS_API_URL = "https://maps.googleapis.com/maps/api/directions/json";
@@ -43,33 +40,62 @@ public class GoogleMapsService {
     /**
      * Get transit route (bus/train)
      */
-    public JsonNode getTransitRoute(String origin, String destination) {
+    public JsonNode getTransitRoute(String origin, String destination, String deviceId, String ipAddress, String userAgent) {
         logger.info("Fetching transit route from {} to {}", origin, destination);
-        return getDirections(origin, destination, "transit", true);
+
+        JsonNode routeData = getDirections(origin, destination, "transit", true);
+
+        String routeType = "TRANSIT";
+        // Fire-and-forget async tracking (NON-BLOCKING)
+        deviceTrackingService.trackDeviceAndRouteAsync(
+                deviceId, origin, destination, routeType, ipAddress, userAgent, routeData);
+
+        return routeData;
+
     }
 
     /**
      * Get driving route
      */
-    public JsonNode getDrivingRoute(String origin, String destination) {
+    public JsonNode getDrivingRoute(String origin, String destination, String deviceId, String ipAddress, String userAgent) {
         logger.info("Fetching driving route from {} to {}", origin, destination);
-        return getDirections(origin, destination, "driving", true);
+        JsonNode routeData = getDirections(origin, destination, "driving", true);
+
+        String routeType = "DRIVING";
+        // Fire-and-forget async tracking (NON-BLOCKING)
+        deviceTrackingService.trackDeviceAndRouteAsync(
+                deviceId, origin, destination, routeType, ipAddress, userAgent, routeData);
+
+        return routeData;
     }
 
     /**
      * Get walking route
      */
-    public JsonNode getWalkingRoute(String origin, String destination) {
+    public JsonNode getWalkingRoute(String origin, String destination, String deviceId, String ipAddress, String userAgent) {
         logger.info("Fetching walking route from {} to {}", origin, destination);
-        return getDirections(origin, destination, "walking", false);
+        JsonNode routeData = getDirections(origin, destination, "walking", false);
+
+        String routeType = "WALKING";
+        // Fire-and-forget async tracking (NON-BLOCKING)
+        deviceTrackingService.trackDeviceAndRouteAsync(
+                deviceId, origin, destination, routeType, ipAddress, userAgent, routeData);
+
+        return routeData;
     }
 
     /**
      * Get bicycling route
      */
-    public JsonNode getBicyclingRoute(String origin, String destination) {
+    public JsonNode getBicyclingRoute(String origin, String destination, String deviceId, String ipAddress, String userAgent) {
         logger.info("Fetching bicycling route from {} to {}", origin, destination);
-        return getDirections(origin, destination, "bicycling", false);
+        JsonNode routeData = getDirections(origin, destination, "bicycling", false);
+        String routeType = "BICYCLING";
+        // Fire-and-forget async tracking (NON-BLOCKING)
+        deviceTrackingService.trackDeviceAndRouteAsync(
+                deviceId, origin, destination, routeType, ipAddress, userAgent, routeData);
+
+        return routeData;
     }
 
     /**
@@ -161,7 +187,7 @@ public class GoogleMapsService {
     /**
      * Get BUS-only route
      */
-    public JsonNode getBusRoute(String origin, String destination) {
+    public JsonNode getBusRoute(String origin, String destination, String deviceId, String ipAddress, String userAgent) {
         logger.info("Fetching BUS route from {} to {}", origin, destination);
 
         Map<String, String> busParams = new HashMap<>();
@@ -169,15 +195,20 @@ public class GoogleMapsService {
         busParams.put("transit_routing_preference", "fewer_transfers");
         busParams.put("departure_time", "now");
 
-        return getDirections(origin, destination, "transit", true, busParams);
+        JsonNode routeData = getDirections(origin, destination, "transit", true, busParams);
+
+        String routeType = "BUS";
+        // Fire-and-forget async tracking (NON-BLOCKING)
+        deviceTrackingService.trackDeviceAndRouteAsync(
+                deviceId, origin, destination, routeType, ipAddress, userAgent, routeData);
+
+        return routeData;
     }
 
     /**
      * Get TRAIN/SUBWAY-only route (BTS/MRT)
      */
-    public JsonNode getTrainRoute(String origin, String destination, String deviceId) {
-        logger.info("Fetching TRAIN/SUBWAY route from {} to {}", origin, destination);
-
+    public JsonNode getTrainRoute(String origin, String destination, String deviceId, String ipAddress, String userAgent) {
         Map<String, String> trainParams = new HashMap<>();
         trainParams.put("transit_mode", "subway|train|rail");
         trainParams.put("transit_routing_preference", "less_walking");
@@ -185,20 +216,10 @@ public class GoogleMapsService {
 
         JsonNode routeData = getDirections(origin, destination, "transit", true, trainParams);
 
-        // 2. Extract route details
-        RouteDetails details = extractRouteDetails(routeData);
-        details.routeType = "TRAIN"; // Specify it's train/subway
-
-        // 3. Fire-and-forget async tracking (NON-BLOCKING)
-        String ipAddress = deviceTrackingService.getClientIpAddress(request);
-        String userAgent = request.getHeader("User-Agent");
-
+        String routeType = "TRAIN";
+        // Fire-and-forget async tracking (NON-BLOCKING)
         deviceTrackingService.trackDeviceAndRouteAsync(
-                deviceId, origin, destination,
-                details.routeType, details.transitMode,
-                details.distanceKm, details.durationMinutes,
-                details.fareAmount, ipAddress, userAgent
-        );
+                deviceId, origin, destination, routeType, ipAddress, userAgent, routeData);
 
         return routeData;
     }
@@ -298,7 +319,9 @@ public class GoogleMapsService {
      */
     private JsonNode getDirections(String origin, String destination, String mode,
                                    boolean alternatives, Map<String, String> extraParams) {
-        try {
+//        logger.info("START :: getDirections(String origin : {}, String destination : {}, String mode : {}, boolean alternatives : {}, Map<String, String> extraParams : {}",
+//                origin, destination, mode, alternatives, extraParams);
+//        try {
             // Build base URL
             UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(DIRECTIONS_API_URL)
                     .queryParam("origin", origin)
@@ -322,7 +345,7 @@ public class GoogleMapsService {
                 throw new GoogleMapsException("Empty response from Google Maps API");
             }
 
-            JsonNode jsonResponse = objectMapper.readTree(response);
+            JsonNode jsonResponse = parseJson(response);
 
             // Validate response
             validateGoogleMapsResponse(jsonResponse);
@@ -335,74 +358,33 @@ public class GoogleMapsService {
 
             return jsonResponse;
 
-        } catch (RestClientException e) {
-            logger.error("Failed to connect to Google Maps API", e);
-            throw new GoogleMapsException("Failed to connect to Google Maps API: " + e.getMessage(), e);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            logger.error("Failed to parse JSON response", e);
-            throw new GoogleMapsException("Invalid JSON response from Google Maps API", e);
-        } catch (GoogleMapsException e) {
-            // Re-throw our custom exceptions
-            throw e;
-        } catch (Exception e) {
-            logger.error("Unexpected error processing Google Maps response", e);
-            throw new GoogleMapsException("Error processing Google Maps response: " + e.getMessage(), e);
-        }
+//        } catch (RestClientException e) {
+//            logger.error("Failed to connect to Google Maps API", e);
+//            throw new GoogleMapsException("Failed to connect to Google Maps API: " + e.getMessage(), e);
+//        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+//            logger.error("Failed to parse JSON response", e);
+//            throw new GoogleMapsException("Invalid JSON response from Google Maps API", e);
+//        } catch (GoogleMapsException e) {
+//            // Re-throw our custom exceptions
+//            throw e;
+//        } catch (Exception e) {
+//            logger.error("Unexpected error processing Google Maps response", e);
+//            throw new GoogleMapsException("Error processing Google Maps response: " + e.getMessage(), e);
+//        }finally {
+//            logger.info("END :: getDirections(String origin : {}, String destination : {}, String mode : {}, boolean alternatives : {}, Map<String, String> extraParams : {}",
+//                    origin, destination, mode, alternatives, extraParams);
+//        }
     }
 
     /**
-     * Extract route details helper
+     * Wrapper to convert checked JsonProcessingException to unchecked
      */
-    private RouteDetails extractRouteDetails(JsonNode routeData) {
-        RouteDetails details = new RouteDetails();
-        details.routeType = "TRANSIT";
-
-        if (routeData.has("routes") && !routeData.get("routes").isEmpty()) {
-            JsonNode route = routeData.get("routes").get(0);
-
-            if (route.has("legs") && !route.get("legs").isEmpty()) {
-                JsonNode leg = route.get("legs").get(0);
-
-                // Extract distance
-                if (leg.has("distance")) {
-                    details.distanceKm = leg.get("distance").get("value").asDouble() / 1000.0;
-                }
-
-                // Extract duration
-                if (leg.has("duration")) {
-                    details.durationMinutes = leg.get("duration").get("value").asInt() / 60;
-                }
-
-                // Extract transit mode
-                if (leg.has("steps")) {
-                    for (JsonNode step : leg.get("steps")) {
-                        if (step.has("transit_details")) {
-                            JsonNode vehicle = step.get("transit_details").get("line").get("vehicle");
-                            details.transitMode = vehicle.get("type").asText();
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Extract fare
-            if (route.has("fare")) {
-                details.fareAmount = route.get("fare").get("value").asDouble();
-            }
+    private JsonNode parseJson(String json) {
+        try {
+            return objectMapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            throw new GoogleMapsException("Failed to parse JSON response", e);
         }
-
-        return details;
-    }
-
-    /**
-     * Helper class for route details
-     */
-    private static class RouteDetails {
-        String routeType;
-        String transitMode;
-        Double distanceKm;
-        Integer durationMinutes;
-        Double fareAmount;
     }
 
 }

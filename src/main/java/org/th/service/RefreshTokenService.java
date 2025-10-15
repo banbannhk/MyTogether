@@ -78,7 +78,7 @@ public class RefreshTokenService {
         refreshToken = refreshTokenRepository.save(refreshToken);
 
         // Track token usage in device info
-        deviceTrackingService.trackTokenRefresh(refreshToken.getDeviceId(), token);
+//        deviceTrackingService.trackTokenRefresh(refreshToken.getDeviceId(), token);
 
         logger.info("✅ Refresh token used for user {} on device {}",
                 refreshToken.getUserId(), refreshToken.getDeviceId());
