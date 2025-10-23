@@ -7,9 +7,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "device_info")
+@Table(name = "device_info", indexes = {
+        @Index(name = "idx_is_logged_in", columnList = "is_logged_in")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -65,8 +69,9 @@ public class DeviceInfo {
     @Column(name = "is_logged_in")
     private Boolean isLoggedIn = false;
 
-    @Column(name = "user_id")
-    private Long userId;  // Link to user after login
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    private User user;
 
     @Column(name = "is_active")
     private Boolean isActive = true;
@@ -76,6 +81,12 @@ public class DeviceInfo {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @OneToMany(mappedBy = "deviceInfo", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RefreshToken> refreshTokens = new ArrayList<>();
+
+    @OneToMany(mappedBy = "deviceInfo", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RouteUsage> routeUsage = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

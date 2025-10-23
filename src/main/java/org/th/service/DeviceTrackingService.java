@@ -71,7 +71,7 @@ public class DeviceTrackingService {
 
             // 2. Save route usage
             RouteUsage routeUsage = new RouteUsage();
-            routeUsage.setDeviceId(deviceInfo.getDeviceId());
+            routeUsage.setDeviceInfo(new DeviceInfo());
             routeUsage.setOrigin(origin);
             routeUsage.setDestination(destination);
             routeUsage.setRouteType(routeType);

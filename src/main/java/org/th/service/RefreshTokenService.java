@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.th.entity.DeviceInfo;
 import org.th.entity.RefreshToken;
 import org.th.repository.RefreshTokenRepository;
 
@@ -44,8 +45,8 @@ public class RefreshTokenService {
 
         // Create new token
         RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setUserId(userId);
-        refreshToken.setDeviceId(deviceId);
+        //refreshToken.setUserId(userId);
+        refreshToken.setDeviceInfo(new DeviceInfo());
         refreshToken.setToken(generateTokenString());
         refreshToken.setExpiresAt(LocalDateTime.now().plusDays(REFRESH_TOKEN_VALIDITY_DAYS));
         refreshToken.setIpAddress(getClientIp(request));
@@ -80,8 +81,7 @@ public class RefreshTokenService {
         // Track token usage in device info
 //        deviceTrackingService.trackTokenRefresh(refreshToken.getDeviceId(), token);
 
-        logger.info("✅ Refresh token used for user {} on device {}",
-                refreshToken.getUserId(), refreshToken.getDeviceId());
+        logger.info("✅ Refresh token used for user on device {}", refreshToken.getDeviceInfo().getDeviceId());
 
         return refreshToken;
     }
@@ -98,43 +98,8 @@ public class RefreshTokenService {
             refreshToken.setRevoked(true);
             refreshToken.setRevokedAt(LocalDateTime.now());
             refreshTokenRepository.save(refreshToken);
-            logger.info("✅ Revoked token for user {} on device {}",
-                    refreshToken.getUserId(), refreshToken.getDeviceId());
+            logger.info("✅ Revoked token for user on device {}", refreshToken.getDeviceInfo().getDeviceId());
         }
-    }
-
-    /**
-     * Revoke all tokens for a user (logout from all devices)
-     */
-    @Transactional
-    public void revokeAllUserTokens(Long userId) {
-        refreshTokenRepository.revokeAllUserTokens(userId, LocalDateTime.now());
-        logger.info("✅ Revoked all tokens for user {}", userId);
-    }
-
-    /**
-     * Revoke all tokens for a device
-     */
-    @Transactional
-    public void revokeAllDeviceTokens(String deviceId) {
-        refreshTokenRepository.revokeAllDeviceTokens(deviceId, LocalDateTime.now());
-        logger.info("✅ Revoked all tokens for device {}", deviceId);
-    }
-
-    /**
-     * Get all active sessions for user
-     */
-    public List<RefreshToken> getUserActiveSessions(Long userId) {
-        return refreshTokenRepository.findActiveTokensByUserId(userId, LocalDateTime.now());
-    }
-
-    /**
-     * Clean up expired tokens (scheduled job)
-     */
-    @Transactional
-    public void cleanupExpiredTokens() {
-        refreshTokenRepository.deleteExpiredTokens(LocalDateTime.now());
-        logger.info("✅ Cleaned up expired refresh tokens");
     }
 
     /**

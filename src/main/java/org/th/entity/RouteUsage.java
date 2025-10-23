@@ -1,4 +1,3 @@
-// File: src/main/java/org/th/entity/RouteUsage.java
 package org.th.entity;
 
 import jakarta.persistence.*;
@@ -8,7 +7,9 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "route_usage")
+@Table(name = "route_usage", indexes = {
+        @Index(name = "idx_search_timestamp", columnList = "search_timestamp")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,8 +19,10 @@ public class RouteUsage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "device_id", nullable = false)
-    private String deviceId;
+    // Relationship to DeviceInfo
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "device_info_id", nullable = false)
+    private DeviceInfo deviceInfo;
 
     @Column(name = "origin", nullable = false)
     private String origin;
@@ -27,11 +30,11 @@ public class RouteUsage {
     @Column(name = "destination", nullable = false)
     private String destination;
 
-    @Column(name = "route_type")
-    private String routeType;  // "TRANSIT", "DRIVING", "WALKING", "BICYCLING"
+    @Column(name = "route_type", length = 50)
+    private String routeType;
 
-    @Column(name = "transit_mode")
-    private String transitMode;  // "BUS", "BTS", "MRT", "TRAIN"
+    @Column(name = "transit_mode", length = 50)
+    private String transitMode;
 
     @Column(name = "distance_km")
     private Double distanceKm;
@@ -45,10 +48,10 @@ public class RouteUsage {
     @Column(name = "search_timestamp")
     private LocalDateTime searchTimestamp;
 
-    @Column(name = "ip_address")
+    @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
-    @Column(name = "session_id")
+    @Column(name = "session_id", length = 255)
     private String sessionId;
 
     @Column(name = "created_at")
