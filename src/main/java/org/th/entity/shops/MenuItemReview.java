@@ -10,31 +10,32 @@ import org.th.entity.User;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "favorites")
+@Table(name = "menu_item_reviews", indexes = {
+        @Index(name = "idx_item_review_item", columnList = "menu_item_id"),
+        @Index(name = "idx_item_review_user", columnList = "user_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Favorite {
+public class MenuItemReview {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ========== ADD USER RELATIONSHIP ==========
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-    // ==========================================
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "shop_id", nullable = false)
-    private Shop shop;
+    @JoinColumn(name = "menu_item_id", nullable = false)
+    private MenuItem menuItem;
+
+    @Column(nullable = false)
+    private Integer rating; // 1-5
 
     @Column(columnDefinition = "TEXT")
-    private String notes;
-
-    @Column(name = "notes_mm", columnDefinition = "TEXT")
-    private String notesMm;
+    private String comment;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

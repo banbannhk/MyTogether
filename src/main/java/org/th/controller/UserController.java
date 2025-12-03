@@ -1,47 +1,73 @@
 package org.th.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import org.th.response.UserResponse;
+import org.springframework.web.bind.annotation.*;
+import org.th.dto.ApiResponse;
+import org.th.dto.UserProfileDTO;
 import org.th.entity.User;
 import org.th.repository.UserRepository;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/user")
 @RequiredArgsConstructor
-@Tag(name = "Users", description = "User management endpoints")
-@SecurityRequirement(name = "bearer-jwt")
+@Tag(name = "User", description = "User profile and preferences")
 public class UserController {
 
     private final UserRepository userRepository;
 
-    @GetMapping("/me")
-    @Operation(summary = "Get current user", description = "Get currently authenticated user information")
-    public ResponseEntity<UserResponse> getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+    @GetMapping("/profile")
+    @Operation(summary = "Get user profile", description = "Get current user's profile and taste preferences")
+    public ResponseEntity<ApiResponse<UserProfileDTO>> getProfile() {
+        User user = getCurrentUser();
+        if (user == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+        }
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserProfileDTO dto = new UserProfileDTO();
+        dto.setFullName(user.getFullName());
+        dto.setEmail(user.getEmail());
+        dto.setIsVegetarian(user.getIsVegetarian());
+        dto.setIsHalal(user.getIsHalal());
+        dto.setPricePreference(user.getPricePreference());
+        dto.setSpicinessPreference(user.getSpicinessPreference());
 
-        UserResponse response = new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFullName(),
-                user.getRole().name(),
-                user.getCreatedAt(),
-                user.isActive()
-        );
+        return ResponseEntity.ok(ApiResponse.success("Profile retrieved", dto));
+    }
 
-        return ResponseEntity.ok(response);
+    @PutMapping("/profile")
+    @Operation(summary = "Update user profile", description = "Update taste preferences")
+    public ResponseEntity<ApiResponse<UserProfileDTO>> updateProfile(@RequestBody UserProfileDTO request) {
+        User user = getCurrentUser();
+        if (user == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+        }
+
+        if (request.getFullName() != null)
+            user.setFullName(request.getFullName());
+        if (request.getIsVegetarian() != null)
+            user.setIsVegetarian(request.getIsVegetarian());
+        if (request.getIsHalal() != null)
+            user.setIsHalal(request.getIsHalal());
+        if (request.getPricePreference() != null)
+            user.setPricePreference(request.getPricePreference());
+        if (request.getSpicinessPreference() != null)
+            user.setSpicinessPreference(request.getSpicinessPreference());
+
+        userRepository.save(user);
+
+        return ResponseEntity.ok(ApiResponse.success("Profile updated", request));
+    }
+
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            return null;
+        }
+        return userRepository.findByUsername(auth.getName()).orElse(null);
     }
 }

@@ -90,6 +90,9 @@ public class Shop {
     @Column(name = "rating_count")
     private Integer ratingCount = 0;
 
+    @Column(name = "trending_score")
+    private Double trendingScore = 0.0;
+
     @Column(name = "view_count")
     private Integer viewCount = 0;
 

@@ -33,6 +33,15 @@ public class ShopPhoto {
     @Column(name = "photo_type", length = 50)
     private String photoType = "other";
 
+    @Column(length = 500)
+    private String caption;
+
+    @Column(name = "caption_mm", length = 500)
+    private String captionMm;
+
+    @Column(name = "caption_en", length = 500)
+    private String captionEn;
+
     @Column(name = "is_primary")
     private Boolean isPrimary = false;
 

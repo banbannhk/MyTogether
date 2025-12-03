@@ -1,0 +1,52 @@
+package org.th.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+
+/**
+ * Lightweight DTO for shop list views
+ * Optimized for displaying multiple shops in lists or maps
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ShopListDTO {
+
+    private Long id;
+
+    private String name;
+    private String nameMm;
+    private String nameEn;
+
+    private String slug;
+
+    private String category;
+    private String subCategory;
+
+    private String address;
+    private String addressMm;
+    private String township;
+    private String city;
+
+    private BigDecimal latitude;
+    private BigDecimal longitude;
+
+    private BigDecimal ratingAvg;
+    private Integer ratingCount;
+
+    private String primaryPhotoUrl;
+
+    private Boolean hasDelivery;
+    private Boolean hasParking;
+    private Boolean hasWifi;
+
+    private Boolean isVerified;
+
+    // Distance from user location (only populated for nearby searches)
+    private Double distance;
+}

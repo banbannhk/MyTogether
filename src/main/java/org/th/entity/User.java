@@ -50,6 +50,29 @@ public class User implements UserDetails {
     @Column(name = "is_active")
     private boolean isActive = true;
 
+    // Taste Profile
+    @Column(name = "is_vegetarian")
+    private Boolean isVegetarian = false;
+
+    @Column(name = "is_halal")
+    private Boolean isHalal = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_preference")
+    private PricePreference pricePreference;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "spiciness_preference")
+    private SpicinessPreference spicinessPreference;
+
+    public enum PricePreference {
+        LOW, MEDIUM, HIGH
+    }
+
+    public enum SpicinessPreference {
+        MILD, MEDIUM, SPICY
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

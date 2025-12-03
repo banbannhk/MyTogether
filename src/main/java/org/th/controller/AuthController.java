@@ -15,6 +15,8 @@ import org.th.response.AuthResponse;
 import org.th.service.AuthService;
 import org.th.service.DeviceTrackingService;
 import org.th.service.RefreshTokenService;
+import org.th.config.ratelimit.RateLimit;
+import org.th.config.ratelimit.RateLimit.Tier;
 
 import java.util.Map;
 
@@ -33,6 +35,7 @@ public class AuthController {
     private DeviceTrackingService deviceTrackingService;
 
     @PostMapping("/register")
+    @RateLimit(tier = Tier.AUTH, perUser = false)
     @Operation(summary = "Register new user", description = "Create a new user account")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
@@ -40,6 +43,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @RateLimit(tier = Tier.AUTH, perUser = false)
     @Operation(summary = "Login", description = "Authenticate user and get JWT token")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
@@ -66,7 +70,6 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(
-                ApiResponse.success("Token refreshed successfully", response)
-        );
+                ApiResponse.success("Token refreshed successfully", response));
     }
 }

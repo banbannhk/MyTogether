@@ -24,6 +24,23 @@ public class MapsController {
     private DeviceTrackingService deviceTrackingService;
 
     /**
+     * Search Myanmar shops from Google Places API
+     * GET /api/maps/myanmar-shops?query=Myanmar restaurant Bangkok
+     */
+    @GetMapping("/myanmar-shops")
+    public ResponseEntity<ApiResponse<JsonNode>> searchMyanmarShops(
+            @RequestParam(required = false, defaultValue = "Myanmar restaurant Bangkok") String query,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false, defaultValue = "5000") Integer radius) {
+
+        JsonNode result = mapsService.searchMyanmarShops(query, lat, lng, radius);
+        return ResponseEntity.ok(
+                ApiResponse.success("Myanmar shops retrieved successfully", result)
+        );
+    }
+
+    /**
      * Health check endpoint
      * GET /api/maps/health
      */

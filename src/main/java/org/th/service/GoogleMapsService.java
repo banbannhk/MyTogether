@@ -387,4 +387,26 @@ public class GoogleMapsService {
         }
     }
 
+    /**
+     * Search Myanmar shops from Google Places
+     */
+    public JsonNode searchMyanmarShops(String query, Double lat, Double lan, Integer radius) {
+        String url = "https://maps.googleapis.com/maps/api/place/textsearch/json";
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
+                .queryParam("query", query)
+                .queryParam("key", apiKey);
+
+        // Optional: Add location bias if provided
+        if (lat != null && lan != null) {
+            builder.queryParam("location", lat + "," + lan);
+
+            if (radius != null) {
+                builder.queryParam("radius", radius);
+            }
+        }
+
+        return restTemplate.getForObject(builder.toUriString(), JsonNode.class);
+    }
+
 }

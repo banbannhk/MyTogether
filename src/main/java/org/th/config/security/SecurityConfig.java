@@ -33,10 +33,10 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints - Swagger
+                        // Public endpoints - No authentication required
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/maps/**",
+                                "/api/shops/**", // ✅ Public shop browsing
                                 "/api/hello",
                                 "/api/health",
                                 "/swagger-ui/**",
@@ -46,16 +46,22 @@ public class SecurityConfig {
                                 "/api-docs/**",
                                 "/api-docs/swagger-config",
                                 "/swagger-resources/**",
-                                "/webjars/**"
-                        ).permitAll()
-                        // Protected endpoints
-                        .requestMatchers("/api/maps/**").authenticated()
+                                "/webjars/**")
+                        .permitAll()
+
+                        // User features - Authentication required
+                        .requestMatchers("/api/reviews/**").authenticated()
+                        .requestMatchers("/api/favorites/**").authenticated()
                         .requestMatchers("/api/users/**").authenticated()
+
+                        // Maps endpoints - Public but tracked
+                        .requestMatchers("/api/maps/**").permitAll()
+
                         // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
                         // All other endpoints require authentication
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

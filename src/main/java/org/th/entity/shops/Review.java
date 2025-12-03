@@ -38,6 +38,9 @@ public class Review {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String comment;
 
+    @Column(name = "comment_mm", columnDefinition = "TEXT")
+    private String commentMm;
+
     @Column(name = "reviewer_name", length = 255)
     private String reviewerName;
 
@@ -55,6 +58,9 @@ public class Review {
 
     @Column(name = "owner_response", columnDefinition = "TEXT")
     private String ownerResponse;
+
+    @Column(name = "owner_response_mm", columnDefinition = "TEXT")
+    private String ownerResponseMm;
 
     @Column(name = "owner_response_at")
     private LocalDateTime ownerResponseAt;
