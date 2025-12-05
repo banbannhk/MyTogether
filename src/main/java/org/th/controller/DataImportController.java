@@ -64,4 +64,48 @@ public class DataImportController {
                     ApiResponse.error("Import failed: " + e.getMessage()));
         }
     }
+
+    /**
+     * Import user activity from Excel file
+     */
+    @PostMapping("/activity/excel")
+    @Operation(summary = "Import user activity from Excel", description = "Upload Excel file with user activities for testing")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importUserActivityFromExcel(
+            @RequestParam("file") MultipartFile file) {
+
+        // Validate file
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("File is empty"));
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.endsWith(".xlsx")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("File must be .xlsx format"));
+        }
+
+        try {
+            ExcelImportService.ImportResult result = excelImportService.importUserActivityFromExcel(file);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("successCount", result.getSuccessCount());
+            response.put("errorCount", result.getErrors().size());
+            response.put("errors", result.getErrors());
+
+            if (result.hasErrors()) {
+                return ResponseEntity.ok(ApiResponse.success(
+                        "Import completed with " + result.getSuccessCount() + " activities, "
+                                + result.getErrors().size()
+                                + " errors",
+                        response));
+            }
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Successfully imported " + result.getSuccessCount() + " activities",
+                    response));
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    ApiResponse.error("Import failed: " + e.getMessage()));
+        }
+    }
 }

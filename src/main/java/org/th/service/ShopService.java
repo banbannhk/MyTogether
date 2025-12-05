@@ -10,6 +10,7 @@ import org.th.repository.ShopRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -118,14 +119,26 @@ public class ShopService {
 
     /**
      * Get shop by ID
-     * 
+     *
      * @param shopId Shop ID
      * @return Shop entity
      */
+    @Transactional(readOnly = true)
     public Optional<Shop> getShopById(Long shopId) {
         logger.info("Fetching shop with ID: {}", shopId);
-        // Use optimized query to fetch details in one go
-        return shopRepository.findByIdWithDetails(shopId);
+        // Use optimized queries to fetch details separately (to avoid
+        // MultipleBagFetchException)
+        // Hibernate cannot fetch multiple List collections in a single query
+        Optional<Shop> shopOpt = shopRepository.findByIdWithDetails(shopId);
+
+        // If shop exists, fetch menu items and operating hours separately
+        shopOpt.ifPresent(shop -> {
+            // These queries load the collections into the persistence context
+            shopRepository.findMenuCategoriesWithItems(shopId);
+            shopRepository.findOperatingHoursByShopId(shopId);
+        });
+
+        return shopOpt;
     }
 
     /**
@@ -460,6 +473,11 @@ public class ShopService {
                 .viewCount(shop.getViewCount())
                 .isActive(shop.getIsActive())
                 .isVerified(shop.getIsVerified())
+                .primaryPhotoUrl(shop.getPhotos().stream()
+                        .filter(photo -> photo.getIsPrimary() != null && photo.getIsPrimary())
+                        .findFirst()
+                        .map(org.th.entity.shops.ShopPhoto::getUrl)
+                        .orElse(shop.getPhotos().isEmpty() ? null : shop.getPhotos().get(0).getUrl()))
                 .photos(photoDTOs)
                 .menuCategories(menuCategoryDTOs)
                 .recentReviews(reviewDTOs)

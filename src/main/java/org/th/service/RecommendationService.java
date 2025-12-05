@@ -1,6 +1,7 @@
 package org.th.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.th.entity.shops.Favorite;
@@ -26,25 +27,61 @@ public class RecommendationService {
     private final FavoriteRepository favoriteRepository;
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final org.th.repository.UserActivityRepository userActivityRepository;
 
     /**
-     * Get personalized recommendations for a user
+     * Get personalized recommendations for a user or device
      */
+    @Cacheable("recommendations")
     @Transactional(readOnly = true)
     public List<Shop> getRecommendedShops(String username) {
-        User user = userRepository.findByUsername(username).orElse(null);
-        if (user == null)
+        return getRecommendedShops(username, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Shop> getRecommendedShops(String username, String deviceId) {
+        User user = null;
+        if (username != null) {
+            user = userRepository.findByUsername(username).orElse(null);
+        }
+
+        // If neither user nor deviceId is present, return empty
+        if (user == null && deviceId == null) {
             return new ArrayList<>();
+        }
 
-        Long userId = user.getId();
+        Long userId = (user != null) ? user.getId() : null;
 
-        // 1. Get user's interaction history
-        List<Favorite> favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        List<Review> reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        // 1. Get user's interaction history (Favorites, Reviews, Activities)
+        List<Favorite> favorites = new ArrayList<>();
+        List<Review> reviews = new ArrayList<>();
 
         // 2. Identify excluded IDs (shops user already knows)
         Set<Long> excludedIds = new HashSet<>();
         Set<String> preferredCategories = new HashSet<>();
+
+        if (userId != null) {
+            favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
+
+            // OPTIMIZATION: Fetch top categories directly from DB
+            List<Object[]> topCategories = userActivityRepository.findTopCategoriesByUser(userId);
+            for (Object[] row : topCategories) {
+                String category = (String) row[0];
+                if (category != null)
+                    preferredCategories.add(category);
+            }
+        }
+
+        if (deviceId != null) {
+            // OPTIMIZATION: Fetch top categories for device
+            List<Object[]> topCategories = userActivityRepository.findTopCategoriesByDevice(deviceId);
+            for (Object[] row : topCategories) {
+                String category = (String) row[0];
+                if (category != null)
+                    preferredCategories.add(category);
+            }
+        }
 
         for (Favorite fav : favorites) {
             excludedIds.add(fav.getShop().getId());

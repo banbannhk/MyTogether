@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.th.entity.shops.Shop;
+import org.th.entity.shops.MenuCategory;
 import org.th.dto.LocationCountDTO;
 
 import java.util.List;
@@ -17,15 +18,30 @@ import java.util.Optional;
 public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     /**
-     * Find shop by ID with all related entities loaded (Fixes N+1 problem)
+     * Find shop by ID with photos only (avoid MultipleBagFetchException)
+     * Other collections are fetched separately
      */
-    @Query("SELECT s FROM Shop s " +
+    @Query("SELECT DISTINCT s FROM Shop s " +
             "LEFT JOIN FETCH s.photos " +
-            "LEFT JOIN FETCH s.menuCategories mc " +
-            "LEFT JOIN FETCH mc.items " +
-            "LEFT JOIN FETCH s.operatingHours " +
             "WHERE s.id = :id")
     Optional<Shop> findByIdWithDetails(@Param("id") Long id);
+
+    /**
+     * Fetch menu categories with their items for a shop
+     * This is called after findByIdWithDetails to load collections separately
+     */
+    @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
+            "LEFT JOIN FETCH mc.items " +
+            "WHERE mc.shop.id = :shopId")
+    List<MenuCategory> findMenuCategoriesWithItems(@Param("shopId") Long shopId);
+
+    /**
+     * Fetch operating hours for a shop
+     * This is called after findByIdWithDetails to load collections separately
+     */
+    @Query("SELECT oh FROM OperatingHour oh " +
+            "WHERE oh.shop.id = :shopId")
+    List<org.th.entity.shops.OperatingHour> findOperatingHoursByShopId(@Param("shopId") Long shopId);
 
     /**
      * Find all shops with pagination
@@ -35,19 +51,21 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     /**
      * Find shops within a specified radius (in kilometers) from a given location
      * Uses the Haversine formula to calculate distances
-     * 
+     *
      * @param latitude   User's latitude
      * @param longitude  User's longitude
      * @param radiusInKm Search radius in kilometers
      * @return List of shops sorted by distance (nearest first)
      */
-    @Query(value = "SELECT *, " +
+    @Query(value = "SELECT * FROM ( " +
+            "SELECT *, " +
             "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
             "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
             "sin(radians(latitude)))) AS distance " +
             "FROM shops " +
-            "WHERE is_active = true " +
-            "HAVING distance < :radiusInKm " +
+            "WHERE is_active = true" +
+            ") AS shops_with_distance " +
+            "WHERE distance < :radiusInKm " +
             "ORDER BY distance", nativeQuery = true)
     List<Shop> findNearbyShops(@Param("latitude") Double latitude,
             @Param("longitude") Double longitude,
@@ -55,20 +73,22 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     /**
      * Find shops within a radius filtered by category
-     * 
+     *
      * @param latitude   User's latitude
      * @param longitude  User's longitude
      * @param radiusInKm Search radius in kilometers
      * @param category   Shop category filter
      * @return List of shops in the specified category sorted by distance
      */
-    @Query(value = "SELECT *, " +
+    @Query(value = "SELECT * FROM ( " +
+            "SELECT *, " +
             "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
             "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
             "sin(radians(latitude)))) AS distance " +
             "FROM shops " +
-            "WHERE is_active = true AND category = :category " +
-            "HAVING distance < :radiusInKm " +
+            "WHERE is_active = true AND category = :category" +
+            ") AS shops_with_distance " +
+            "WHERE distance < :radiusInKm " +
             "ORDER BY distance", nativeQuery = true)
     List<Shop> findNearbyShopsByCategory(@Param("latitude") Double latitude,
             @Param("longitude") Double longitude,
@@ -77,20 +97,22 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     /**
      * Find shops within a radius with minimum rating
-     * 
+     *
      * @param latitude   User's latitude
      * @param longitude  User's longitude
      * @param radiusInKm Search radius in kilometers
      * @param minRating  Minimum average rating
      * @return List of shops meeting rating criteria sorted by distance
      */
-    @Query(value = "SELECT *, " +
+    @Query(value = "SELECT * FROM ( " +
+            "SELECT *, " +
             "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
             "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
             "sin(radians(latitude)))) AS distance " +
             "FROM shops " +
-            "WHERE is_active = true AND rating_avg >= :minRating " +
-            "HAVING distance < :radiusInKm " +
+            "WHERE is_active = true AND rating_avg >= :minRating" +
+            ") AS shops_with_distance " +
+            "WHERE distance < :radiusInKm " +
             "ORDER BY distance", nativeQuery = true)
     List<Shop> findNearbyShopsByRating(@Param("latitude") Double latitude,
             @Param("longitude") Double longitude,
@@ -134,17 +156,20 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
 
     /**
      * Universal search - searches both shop name and menu items
-     * 
+     *
      * @param keyword Search keyword
      * @return List of shops matching either shop name or menu items
      */
-    @Query("SELECT s FROM Shop s JOIN s.menuItems m WHERE " +
-            "(LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+    @Query("SELECT DISTINCT s FROM Shop s " +
+            "LEFT JOIN s.menuCategories mc " +
+            "LEFT JOIN mc.items mi " +
+            "WHERE s.isActive = true AND " +
+            "((LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(s.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%'))) OR " +
-            "(LOWER(m.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(m.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(m.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+            "(LOWER(mi.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(mi.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(mi.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%'))))")
     List<Shop> searchShops(@Param("keyword") String keyword);
 
     /**

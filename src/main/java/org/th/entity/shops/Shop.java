@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.th.entity.User;
@@ -14,7 +15,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "shops")
+@Table(name = "shops", indexes = {
+        @Index(name = "idx_shop_name", columnList = "name"),
+        @Index(name = "idx_shop_name_mm", columnList = "name_mm"),
+        @Index(name = "idx_shop_name_en", columnList = "name_en"),
+        @Index(name = "idx_shop_township", columnList = "township"),
+        @Index(name = "idx_shop_category", columnList = "category"),
+        @Index(name = "idx_shop_is_active", columnList = "is_active"),
+        @Index(name = "idx_shop_rating", columnList = "rating_avg DESC")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -96,6 +105,7 @@ public class Shop {
     @Column(name = "view_count")
     private Integer viewCount = 0;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private User owner;
@@ -106,15 +116,19 @@ public class Shop {
     @Column(name = "is_verified")
     private Boolean isVerified = false;
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ShopPhoto> photos = new ArrayList<>();
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MenuCategory> menuCategories = new ArrayList<>();
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Review> reviews = new ArrayList<>();
 
+    @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OperatingHour> operatingHours = new ArrayList<>();
 

@@ -57,6 +57,7 @@ public class ShopDetailDTO {
     private Boolean isActive;
     private Boolean isVerified;
 
+    private String primaryPhotoUrl;
     private List<ShopPhotoDTO> photos;
     private List<MenuCategoryDTO> menuCategories;
     private List<ReviewSummaryDTO> recentReviews;

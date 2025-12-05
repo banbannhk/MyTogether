@@ -274,17 +274,29 @@ public class ShopController {
 
         @GetMapping("/foryou")
         @RateLimit(tier = RateLimit.Tier.MODERATE)
-        @Operation(summary = "Personalized recommendations", description = "Get recommended shops based on user history")
-        public ResponseEntity<ApiResponse<List<ShopListDTO>>> getRecommendations() {
+        @Operation(summary = "Personalized recommendations", description = "Get recommended shops based on user history or device activity")
+        public ResponseEntity<ApiResponse<List<ShopListDTO>>> getRecommendations(
+                        HttpServletRequest request) { // Inject Request to get headers
+
                 org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
                                 .getContext().getAuthentication();
 
-                if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
-                        return getTrendingShops(); // Fallback to trending for guests
+                String username = null;
+                boolean isAuthenticated = auth != null && auth.isAuthenticated()
+                                && !"anonymousUser".equals(auth.getPrincipal());
+
+                if (isAuthenticated) {
+                        username = auth.getName();
                 }
 
-                String username = auth.getName();
-                List<Shop> recommendations = recommendationService.getRecommendedShops(username);
+                String deviceId = request.getHeader("X-Device-ID");
+
+                // If neither user nor deviceId, fallback to trending
+                if (username == null && deviceId == null) {
+                        return getTrendingShops();
+                }
+
+                List<Shop> recommendations = recommendationService.getRecommendedShops(username, deviceId);
 
                 if (recommendations.isEmpty()) {
                         return getTrendingShops(); // Fallback if no specific recommendations
