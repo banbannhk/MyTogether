@@ -1,6 +1,8 @@
 package org.th.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.th.entity.shops.Favorite;
 
@@ -61,4 +63,22 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
      * @return Number of recent favorites
      */
     long countByShopIdAndCreatedAtAfter(Long shopId, LocalDateTime after);
+
+    /**
+     * Count total favorites by user
+     * 
+     * @param userId User ID
+     * @return Number of favorites
+     */
+    long countByUserId(Long userId);
+
+    /**
+     * Find all favorites for a user with shop data eagerly loaded (fixes N+1 query)
+     * Uses JOIN FETCH to load shop in single query
+     * 
+     * @param userId User ID
+     * @return List of user's favorites with shops loaded
+     */
+    @Query("SELECT f FROM Favorite f JOIN FETCH f.shop WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
+    List<Favorite> findByUserIdWithShopOrderByCreatedAtDesc(@Param("userId") Long userId);
 }

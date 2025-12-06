@@ -10,7 +10,9 @@ import org.th.entity.User;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "favorites")
+@Table(name = "favorites", indexes = {
+        @Index(name = "idx_favorites_user_created", columnList = "user_id, created_at")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

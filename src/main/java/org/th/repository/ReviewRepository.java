@@ -66,4 +66,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * Count recent reviews for a shop
      */
     long countByShopIdAndCreatedAtAfter(Long shopId, LocalDateTime after);
+
+    /**
+     * Count total reviews by user
+     * 
+     * @param userId User ID
+     * @return Number of reviews
+     */
+    long countByUserId(Long userId);
 }

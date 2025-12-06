@@ -34,7 +34,22 @@ public class CacheConfig {
                 buildCache("shopDetails", 1000, 10, TimeUnit.MINUTES),
 
                 // Reviews - cache for 5 minutes
-                buildCache("shopReviews", 500, 5, TimeUnit.MINUTES)));
+                buildCache("shopReviews", 500, 5, TimeUnit.MINUTES),
+
+                // Trending shops - cache for 5 minutes (frequently accessed)
+                buildCache("trendingShops", 100, 5, TimeUnit.MINUTES),
+
+                // Shops by category - cache for 15 minutes
+                buildCache("shopsByCategory", 500, 15, TimeUnit.MINUTES),
+
+                // Shops by township - cache for 15 minutes
+                buildCache("shopsByTownship", 500, 15, TimeUnit.MINUTES),
+
+                // Time context - cache for 15 minutes
+                buildCache("timeContext", 10, 15, TimeUnit.MINUTES),
+
+                // User segments - cache for 1 hour
+                buildCache("userSegment", 1000, 1, TimeUnit.HOURS)));
 
         return cacheManager;
     }

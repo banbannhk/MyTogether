@@ -38,6 +38,7 @@ public class TrendingService {
      */
     @Scheduled(fixedRate = 3600000) // 1 hour in milliseconds
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "trendingShops", allEntries = true)
     public void updateTrendingScores() {
         logger.info("Starting trending score calculation...");
 
@@ -77,9 +78,11 @@ public class TrendingService {
     }
 
     /**
-     * Get top trending shops
+     * Get top trending shops (cached for 5 minutes)
      */
+    @org.springframework.cache.annotation.Cacheable(value = "trendingShops", key = "'top10'")
     public List<Shop> getTopTrendingShops() {
+        logger.debug("Fetching top trending shops from database");
         return shopRepository.findTop10ByOrderByTrendingScoreDesc();
     }
 }

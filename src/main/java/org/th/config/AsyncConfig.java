@@ -16,9 +16,9 @@ public class AsyncConfig {
 
     // For I/O-bound tracking tasks (virtual threads)
     @Bean(name = "trackingExecutor")
-    public ThreadPoolTaskExecutor trackingExecutor() {
+    public Executor trackingExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setVirtualThreads(true);
+        executor.setVirtualThreads(true); // Use virtual threads for better performance
         executor.setThreadNamePrefix("io-tracking-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
@@ -37,8 +37,7 @@ public class AsyncConfig {
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("cpu-tracking-");
         executor.setRejectedExecutionHandler(
-                new ThreadPoolExecutor.CallerRunsPolicy()
-        );
+                new ThreadPoolExecutor.CallerRunsPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();
