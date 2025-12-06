@@ -2,6 +2,7 @@ package org.th.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final org.th.service.UserActivityService userActivityService;
 
     @Autowired
     private RefreshTokenService refreshTokenService;
@@ -37,16 +39,32 @@ public class AuthController {
     @PostMapping("/register")
     @RateLimit(tier = Tier.AUTH, perUser = false)
     @Operation(summary = "Register new user", description = "Create a new user account")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request,
+            HttpServletRequest servletRequest) {
         AuthResponse response = authService.register(request);
+
+        // Bind anonymous activity if Device ID is present
+        String deviceId = servletRequest.getHeader("X-Device-ID");
+        if (deviceId != null && response.id() != null) {
+            userActivityService.bindDeviceHistory(deviceId, response.id());
+        }
+
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
     @RateLimit(tier = Tier.AUTH, perUser = false)
     @Operation(summary = "Login", description = "Authenticate user and get JWT token")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request,
+            HttpServletRequest servletRequest) {
         AuthResponse response = authService.login(request);
+
+        // Bind anonymous activity if Device ID is present
+        String deviceId = servletRequest.getHeader("X-Device-ID");
+        if (deviceId != null && response.id() != null) {
+            userActivityService.bindDeviceHistory(deviceId, response.id());
+        }
+
         return ResponseEntity.ok(response);
     }
 

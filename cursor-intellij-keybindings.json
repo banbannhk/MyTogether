@@ -407,10 +407,8 @@
         "command": "references-view.findReferences",
         "when": "editorTextFocus"
     },
-    // ============================================
-    // VCS / GIT
-    // ============================================
-    {
+    
+        {
         "key": "cmd+k",
         "command": "workbench.view.scm"
     },

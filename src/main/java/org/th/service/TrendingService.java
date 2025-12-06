@@ -31,6 +31,7 @@ public class TrendingService {
     private static final double VIEW_WEIGHT = 1.0;
     private static final double FAVORITE_WEIGHT = 5.0;
     private static final double REVIEW_WEIGHT = 10.0;
+    private static final double CONVERSION_WEIGHT = 50.0; // High intent actions
 
     /**
      * Calculate trending scores for all shops
@@ -61,10 +62,21 @@ public class TrendingService {
                 long reviews = reviewRepository.countByShopIdAndCreatedAtAfter(
                         shop.getId(), sevenDaysAgo);
 
+                // 4. Conversion Events (Last 7d) - High Intent
+                long directions = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                        shop.getId(), ActivityType.CLICK_DIRECTIONS, sevenDaysAgo);
+                long calls = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                        shop.getId(), ActivityType.CLICK_CALL, sevenDaysAgo);
+                long shares = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                        shop.getId(), ActivityType.CLICK_SHARE, sevenDaysAgo);
+
+                long conversions = directions + calls + shares;
+
                 // Calculate Score
                 double score = (views * VIEW_WEIGHT) +
                         (favorites * FAVORITE_WEIGHT) +
-                        (reviews * REVIEW_WEIGHT);
+                        (reviews * REVIEW_WEIGHT) +
+                        (conversions * CONVERSION_WEIGHT);
 
                 shop.setTrendingScore(score);
 

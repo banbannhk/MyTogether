@@ -102,12 +102,42 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Long
                         Long targetId, ActivityType type, LocalDateTime after);
 
         /**
-         * Count total activities by user
+         * Find user's most searched keywords (for personalization)
          */
-        long countByUserId(Long userId);
+        @Query("SELECT a.searchQuery, COUNT(a) as count " +
+                        "FROM UserActivity a " +
+                        "WHERE a.user.id = :userId AND a.activityType = 'SEARCH_QUERY' " +
+                        "AND a.searchQuery IS NOT NULL " +
+                        "GROUP BY a.searchQuery " +
+                        "ORDER BY count DESC")
+        List<Object[]> findTopSearchQueriesByUser(@Param("userId") Long userId);
+
+        @Query("SELECT a.targetName, COUNT(a) FROM UserActivity a " +
+                        "WHERE a.user.id = :userId AND a.activityType IN ('VIEW_CATEGORY', 'VIEW_SHOP') " +
+                        "AND a.targetName IS NOT NULL " +
+                        "GROUP BY a.targetName ORDER BY COUNT(a) DESC")
+        List<Object[]> findTopCategoriesByUser(@Param("userId") Long userId);
+
+        @Query("SELECT a.targetName, COUNT(a) FROM UserActivity a " +
+                        "WHERE a.deviceId = :deviceId AND a.activityType IN ('VIEW_CATEGORY', 'VIEW_SHOP') " +
+                        "AND a.targetName IS NOT NULL " +
+                        "GROUP BY a.targetName ORDER BY COUNT(a) DESC")
+        List<Object[]> findTopCategoriesByDevice(@Param("deviceId") String deviceId);
 
         /**
-         * Count recent activities by user
+         * Find recently viewed shops by user
          */
-        long countByUserIdAndCreatedAtAfter(Long userId, LocalDateTime after);
+        @Query("SELECT a FROM UserActivity a " +
+                        "WHERE a.user.id = :userId AND a.shop.id IS NOT NULL " +
+                        "AND a.activityType = 'VIEW_SHOP' " +
+                        "ORDER BY a.createdAt DESC")
+        List<UserActivity> findRecentlyViewedShopsByUser(@Param("userId") Long userId);
+
+        @org.springframework.data.jpa.repository.Modifying
+        @Query("UPDATE UserActivity a SET a.user.id = :userId WHERE a.deviceId = :deviceId AND a.user IS NULL")
+        void bindDeviceActivityToUser(@Param("deviceId") String deviceId, @Param("userId") Long userId);
+
+        void deleteByActivityTypeInAndCreatedAtBefore(List<ActivityType> types, LocalDateTime cutoff);
+
+        void deleteByUserIdIsNullAndCreatedAtBefore(LocalDateTime cutoff);
 }

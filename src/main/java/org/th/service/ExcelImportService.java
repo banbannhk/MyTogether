@@ -5,10 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
 import org.springframework.web.multipart.MultipartFile;
 import org.th.entity.shops.*;
 import org.th.repository.ShopRepository;
+
+import org.th.entity.UserActivity;
+import org.th.repository.UserActivityRepository;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -22,11 +25,11 @@ import java.util.*;
 public class ExcelImportService {
 
     private final ShopRepository shopRepository;
+    private final UserActivityRepository userActivityRepository;
 
     /**
      * Import shops from Excel file
      */
-    @Transactional
     public ImportResult importShopsFromExcel(MultipartFile file) throws IOException {
         ImportResult result = new ImportResult();
 
@@ -118,6 +121,18 @@ public class ExcelImportService {
         shop.setIsVerified(getCellValueAsBoolean(row.getCell(19)));
         shop.setIsActive(getCellValueAsBoolean(row.getCell(20), true));
 
+        // New Column: primaryPhotoUrl (21)
+        String primaryPhotoUrl = getCellValueAsString(row.getCell(21));
+        if (primaryPhotoUrl != null && !primaryPhotoUrl.isEmpty()) {
+            ShopPhoto photo = new ShopPhoto();
+            photo.setUrl(primaryPhotoUrl);
+            photo.setThumbnailUrl(primaryPhotoUrl); // Use same for thumb
+            photo.setIsPrimary(true);
+            photo.setPhotoType("cover");
+            photo.setShop(shop);
+            shop.getPhotos().add(photo);
+        }
+
         // Initialize defaults
         shop.setRatingAvg(BigDecimal.ZERO);
         shop.setRatingCount(0);
@@ -156,6 +171,10 @@ public class ExcelImportService {
                 item.setIsVegetarian(getCellValueAsBoolean(row.getCell(5)));
                 item.setIsSpicy(getCellValueAsBoolean(row.getCell(6)));
                 item.setIsPopular(getCellValueAsBoolean(row.getCell(7)));
+
+                // New Column: imageUrl (8)
+                item.setImageUrl(getCellValueAsString(row.getCell(8)));
+
                 item.setIsAvailable(true);
 
                 category.getItems().add(item);
@@ -272,5 +291,80 @@ public class ExcelImportService {
         public boolean hasErrors() {
             return !errors.isEmpty();
         }
+    }
+
+    // User Activity Import
+    public ImportResult importUserActivityFromExcel(MultipartFile file) throws IOException {
+        ImportResult result = new ImportResult();
+
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0); // Assume first sheet
+            Iterator<Row> rows = sheet.iterator();
+
+            // Skip header
+            if (rows.hasNext()) {
+                rows.next();
+            }
+
+            int rowNum = 1;
+            while (rows.hasNext()) {
+                Row row = rows.next();
+                rowNum++;
+
+                try {
+                    String deviceId = getCellValueAsString(row.getCell(0));
+                    String activityTypeStr = getCellValueAsString(row.getCell(1));
+                    String shopSlug = getCellValueAsString(row.getCell(2));
+                    String targetName = getCellValueAsString(row.getCell(3));
+                    String timestampStr = getCellValueAsString(row.getCell(4));
+                    String metadata = getCellValueAsString(row.getCell(5));
+
+                    if (deviceId == null || activityTypeStr == null) {
+                        continue; // Skip invalid rows
+                    }
+
+                    UserActivity activity = new UserActivity();
+                    activity.setDeviceId(deviceId);
+                    activity.setActivityType(org.th.entity.enums.ActivityType.valueOf(activityTypeStr));
+                    activity.setTargetName(targetName);
+                    activity.setMetadata(metadata);
+
+                    // Parse timestamp if present
+                    if (timestampStr != null && !timestampStr.isEmpty()) {
+                        try {
+                            // Try parsing "yyyy-MM-dd HH:mm:ss"
+                            activity.setCreatedAt(java.time.LocalDateTime.parse(timestampStr,
+                                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                        } catch (Exception e) {
+                            // Fallback to now
+                            // activity.onCreate(); // Handled by PrePersist but we might want to override
+                        }
+                    }
+
+                    // Resolve shop ID if slug provided
+                    if (shopSlug != null && !shopSlug.isEmpty()) {
+                        Shop shop = shopRepository.findBySlug(shopSlug);
+                        if (shop != null) {
+                            activity.setTargetId(shop.getId());
+                            if (targetName == null || targetName.isEmpty()) {
+                                activity.setTargetName(shop.getName());
+                            }
+                        }
+                    }
+
+                    userActivityRepository.save(activity);
+                    result.incrementSuccess();
+
+                } catch (Exception e) {
+                    result.addError("Row " + rowNum + ": " + e.getMessage());
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("Error importing Activity Excel", e);
+            result.addError("Critical error: " + e.getMessage());
+        }
+
+        return result;
     }
 }

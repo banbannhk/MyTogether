@@ -16,6 +16,8 @@ import org.th.entity.enums.ActivityType;
 import org.th.repository.UserActivityRepository;
 import org.th.repository.UserRepository;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class UserActivityService {
@@ -105,5 +107,17 @@ public class UserActivityService {
             return userRepository.findByUsername(username).orElse(null);
         }
         return null;
+    }
+
+    /**
+     * Bind anonymous device history to a user account
+     * Binds ALL previous anonymous activity from this device
+     */
+    @Transactional
+    public void bindDeviceHistory(String deviceId, Long userId) {
+        if (deviceId != null && userId != null) {
+            userActivityRepository.bindDeviceActivityToUser(deviceId, userId);
+            logger.info("Bound all anonymous activity for device {} to user {}", deviceId, userId);
+        }
     }
 }
