@@ -164,6 +164,7 @@ public class ExcelImportService {
                 MenuCategory category = getOrCreateCategory(shop, categoryName, categories);
 
                 MenuItem item = new MenuItem();
+                item.setShop(shop); // Set the shop explicitly
                 item.setCategory(category);
                 item.setName(getCellValueAsString(row.getCell(2)));
                 item.setPrice(new BigDecimal(getCellValueAsString(row.getCell(3))));
