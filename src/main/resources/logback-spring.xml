@@ -3,9 +3,9 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
-    <springProperty scope="context" name="LOGTAIL_SOURCE_TOKEN" source="logtail.source-token"/>
+    <springProperty scope="context" name="LOGTAIL_SOURCE_TOKEN" source="logtail.source-token" defaultValue=""/>
 
-    <!-- Logtail Appender -->
+    <!-- Logtail Appender - Only define if token is present or ignored, but safer to just define it -->
     <appender name="LOGTAIL" class="com.logtail.logback.LogtailAppender">
         <appName>MyTogether</appName>
         <sourceToken>${LOGTAIL_SOURCE_TOKEN}</sourceToken>
@@ -18,8 +18,7 @@
         <appender-ref ref="CONSOLE"/>
     </root>
 
-    <!-- Production logging (Activate Logtail only in prod or when token is needed) -->
-    <!-- We append Logtail to root, so it goes to BOTH console and Logtail in prod -->
+    <!-- Production logging (Activate Logtail only in prod) -->
     <springProfile name="prod">
         <root level="INFO">
             <appender-ref ref="LOGTAIL"/>
