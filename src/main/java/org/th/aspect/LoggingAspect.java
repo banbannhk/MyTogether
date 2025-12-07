@@ -1,10 +1,10 @@
 package org.th.aspect;
 
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.AfterReturning;
+
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.stereotype.Component;
 
@@ -38,29 +38,38 @@ public class LoggingAspect {
     }
 
     /**
-     * Advice that logs when a method is entered.
+     * Advice that logs when a method is entered and exited, calculating execution
+     * time.
      *
      * @param joinPoint join point for advice
+     * @return result
+     * @throws Throwable throws IllegalArgumentException
      */
-    /**
-     * Advice that logs when a method is entered.
-     *
-     * @param joinPoint join point for advice
-     */
-    @Before("applicationPackagePointcut() && springBeanPointcut()")
-    public void logBefore(JoinPoint joinPoint) {
-        log.info("START :: {} : args : {}", joinPoint.getSignature().getName(), getMaskedArgs(joinPoint.getArgs()));
-    }
+    @Around("applicationPackagePointcut() && springBeanPointcut()")
+    public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
+        long start = System.currentTimeMillis();
 
-    /**
-     * Advice that logs when a method exits successfully.
-     *
-     * @param joinPoint join point for advice
-     * @param result    the result returned by the method
-     */
-    @AfterReturning(pointcut = "applicationPackagePointcut() && springBeanPointcut()", returning = "result")
-    public void logAfterReturning(JoinPoint joinPoint, Object result) {
-        log.info("END :: {} : args : {}", joinPoint.getSignature().getName(), getMaskedArgs(joinPoint.getArgs()));
+        if (log.isDebugEnabled()) {
+            log.debug("Enter: {}.{}() with argument[s] = {}", joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(), getMaskedArgs(joinPoint.getArgs()));
+        }
+
+        try {
+            Object result = joinPoint.proceed();
+
+            long executionTime = System.currentTimeMillis() - start;
+
+            log.info("Finished: {}.{}() - Execution Time: {} ms",
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    executionTime);
+
+            return result;
+        } catch (IllegalArgumentException e) {
+            log.error("Illegal argument: {} in {}.{}()", getMaskedArgs(joinPoint.getArgs()),
+                    joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName());
+            throw e;
+        }
     }
 
     /**

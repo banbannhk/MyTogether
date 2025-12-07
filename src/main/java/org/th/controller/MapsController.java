@@ -8,10 +8,12 @@ import org.th.service.GoogleMapsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Hidden;
 
 import java.util.List;
 import java.util.Map;
 
+@Hidden
 @RestController
 @RequestMapping("/api/maps")
 @CrossOrigin(origins = "*")
@@ -36,8 +38,7 @@ public class MapsController {
 
         JsonNode result = mapsService.searchMyanmarShops(query, lat, lng, radius);
         return ResponseEntity.ok(
-                ApiResponse.success("Myanmar shops retrieved successfully", result)
-        );
+                ApiResponse.success("Myanmar shops retrieved successfully", result));
     }
 
     /**
@@ -47,8 +48,7 @@ public class MapsController {
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<String>> health() {
         return ResponseEntity.ok(
-                ApiResponse.success("Google Maps API is working!", "Service is healthy")
-        );
+                ApiResponse.success("Google Maps API is working!", "Service is healthy"));
     }
 
     /**
@@ -67,8 +67,7 @@ public class MapsController {
 
         JsonNode result = mapsService.getTransitRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
-                ApiResponse.success("Transit route retrieved successfully", result)
-        );
+                ApiResponse.success("Transit route retrieved successfully", result));
     }
 
     /**
@@ -87,8 +86,7 @@ public class MapsController {
 
         JsonNode result = mapsService.getBusRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
-                ApiResponse.success("Bus route retrieved successfully", result)
-        );
+                ApiResponse.success("Bus route retrieved successfully", result));
     }
 
     /**
@@ -107,8 +105,7 @@ public class MapsController {
 
         JsonNode result = mapsService.getTrainRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
-                ApiResponse.success("Train/Subway route retrieved successfully", result)
-        );
+                ApiResponse.success("Train/Subway route retrieved successfully", result));
     }
 
     /**
@@ -124,8 +121,7 @@ public class MapsController {
 
         Map<String, Object> result = mapsService.getDetailedTransitRoute(origin, destination);
         return ResponseEntity.ok(
-                ApiResponse.success("Detailed transit routes retrieved", result)
-        );
+                ApiResponse.success("Detailed transit routes retrieved", result));
     }
 
     /**
@@ -144,8 +140,7 @@ public class MapsController {
 
         JsonNode result = mapsService.getDrivingRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
-                ApiResponse.success("Driving route retrieved successfully", result)
-        );
+                ApiResponse.success("Driving route retrieved successfully", result));
     }
 
     /**
@@ -164,8 +159,7 @@ public class MapsController {
 
         JsonNode result = mapsService.getWalkingRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
-                ApiResponse.success("Walking route retrieved successfully", result)
-        );
+                ApiResponse.success("Walking route retrieved successfully", result));
     }
 
     /**
@@ -184,8 +178,7 @@ public class MapsController {
 
         JsonNode result = mapsService.getBicyclingRoute(origin, destination, deviceId, ipAddress, userAgent);
         return ResponseEntity.ok(
-                ApiResponse.success("Bicycling route retrieved successfully", result)
-        );
+                ApiResponse.success("Bicycling route retrieved successfully", result));
     }
 
     /**
@@ -196,14 +189,14 @@ public class MapsController {
     public ResponseEntity<ApiResponse<JsonNode>> searchPlaces(@RequestParam String query) {
         JsonNode result = mapsService.searchPlaces(query);
         return ResponseEntity.ok(
-                ApiResponse.success("Places search completed", result)
-        );
+                ApiResponse.success("Places search completed", result));
     }
 
     /**
      * Get route with multiple waypoints
      * POST /api/maps/route-with-waypoints
-     * Body: {"origin": "Bangkok", "destination": "Chiang Mai", "waypoints": ["Ayutthaya", "Lopburi"]}
+     * Body: {"origin": "Bangkok", "destination": "Chiang Mai", "waypoints":
+     * ["Ayutthaya", "Lopburi"]}
      */
     @PostMapping("/route-with-waypoints")
     public ResponseEntity<ApiResponse<JsonNode>> getRouteWithWaypoints(
@@ -218,7 +211,6 @@ public class MapsController {
 
         JsonNode result = mapsService.getRouteWithWaypoints(origin, destination, waypoints);
         return ResponseEntity.ok(
-                ApiResponse.success("Route with waypoints retrieved successfully", result)
-        );
+                ApiResponse.success("Route with waypoints retrieved successfully", result));
     }
 }

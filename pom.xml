@@ -201,6 +201,13 @@
             <artifactId>gson</artifactId>
             <version>2.11.0</version>
         </dependency>
+
+        <!-- Logtail (Better Stack) for Logging -->
+        <dependency>
+            <groupId>com.logtail</groupId>
+            <artifactId>logtail-logback</artifactId>
+            <version>0.3.3</version>
+        </dependency>
     </dependencies>
 
     <build>

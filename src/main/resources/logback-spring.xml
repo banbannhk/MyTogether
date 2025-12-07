@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="LOGTAIL_SOURCE_TOKEN" source="logtail.source-token"/>
+
+    <!-- Logtail Appender -->
+    <appender name="LOGTAIL" class="com.logtail.logback.LogtailAppender">
+        <appName>MyTogether</appName>
+        <sourceToken>${LOGTAIL_SOURCE_TOKEN}</sourceToken>
+        <mdcFields>requestId,userId</mdcFields>
+        <mdcTypes>string,string</mdcTypes>
+    </appender>
+
+    <!-- Default local logging -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!-- Production logging (Activate Logtail only in prod or when token is needed) -->
+    <!-- We append Logtail to root, so it goes to BOTH console and Logtail in prod -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="LOGTAIL"/>
+        </root>
+    </springProfile>
+
+</configuration>
