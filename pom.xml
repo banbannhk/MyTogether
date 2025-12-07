@@ -205,8 +205,8 @@
         <!-- Logtail (Better Stack) for Logging -->
         <dependency>
             <groupId>com.logtail</groupId>
-            <artifactId>logtail-logback</artifactId>
-            <version>0.3.3</version>
+            <artifactId>logback-logtail</artifactId>
+            <version>0.3.5</version>
         </dependency>
     </dependencies>
 
