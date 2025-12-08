@@ -159,7 +159,24 @@ public class ShopService {
      */
     public Page<Shop> getAllShops(Pageable pageable) {
         logger.info("Fetching all shops page: {}", pageable.getPageNumber());
-        return shopRepository.findAll(pageable);
+
+        // 1. Fetch the Page of Shops (triggers N+1 if we access photos later)
+        Page<Shop> shopPage = shopRepository.findAll(pageable);
+
+        // 2. Optimization: If page is not empty, fetch all shops in this page WITH
+        // photos in one query
+        if (!shopPage.isEmpty()) {
+            List<Long> shopIds = shopPage.getContent().stream()
+                    .map(Shop::getId)
+                    .collect(Collectors.toList());
+
+            // This fetches all shops + photos in a single JOIN query
+            // Hibernate will hydrate the existing entities in the Persistence Context
+            // So shopPage.getContent() will automatically have their photos loaded!
+            shopRepository.findByIdInWithPhotos(shopIds);
+        }
+
+        return shopPage;
     }
 
     /**
