@@ -8,12 +8,13 @@ import org.th.entity.shops.Shop;
 import org.th.repository.ShopRepository;
 
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Slice;
 
 @Service
 public class ShopService {
@@ -152,31 +153,27 @@ public class ShopService {
     }
 
     /**
-     * Get all shops with pagination
+     * Get all shops with pagination (Optimized with Slice)
      * 
      * @param pageable Pagination information
-     * @return Page of shops
+     * @return Slice of shops (no total count)
      */
-    public Page<Shop> getAllShops(Pageable pageable) {
-        logger.info("Fetching all shops page: {}", pageable.getPageNumber());
+    public Slice<Shop> getAllShops(Pageable pageable) {
+        logger.info("Fetching all shops slice: {}", pageable.getPageNumber());
 
-        // 1. Fetch the Page of Shops (triggers N+1 if we access photos later)
-        Page<Shop> shopPage = shopRepository.findAll(pageable);
+        // 1. Fetch Slice of Shops (No Count Query)
+        Slice<Shop> shopSlice = shopRepository.findByIsActiveTrue(pageable);
 
-        // 2. Optimization: If page is not empty, fetch all shops in this page WITH
-        // photos in one query
-        if (!shopPage.isEmpty()) {
-            List<Long> shopIds = shopPage.getContent().stream()
+        // 2. Optimization: Fetch eager photos for this slice
+        if (!shopSlice.isEmpty()) {
+            List<Long> shopIds = shopSlice.getContent().stream()
                     .map(Shop::getId)
                     .collect(Collectors.toList());
 
-            // This fetches all shops + photos in a single JOIN query
-            // Hibernate will hydrate the existing entities in the Persistence Context
-            // So shopPage.getContent() will automatically have their photos loaded!
             shopRepository.findByIdInWithPhotos(shopIds);
         }
 
-        return shopPage;
+        return shopSlice;
     }
 
     /**

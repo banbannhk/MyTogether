@@ -342,24 +342,24 @@ public class ShopController {
         }
 
         /**
-         * Get all shops with pagination
+         * Get all shops with pagination (Slice - Faster)
          */
         @GetMapping
         @RateLimit(tier = Tier.PUBLIC)
-        @Operation(summary = "Get all shops", description = "Get paginated list of all shops")
-        public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ShopListDTO>>> getAllShops(
+        @Operation(summary = "Get all shops", description = "Get paginated list of all shops (Slice - No Total Count)")
+        public ResponseEntity<ApiResponse<org.springframework.data.domain.Slice<ShopListDTO>>> getAllShops(
                         @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
                         @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size) {
 
                 org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
                                 size);
-                org.springframework.data.domain.Page<Shop> shopsPage = shopService.getAllShops(pageable);
+                org.springframework.data.domain.Slice<Shop> shopsSlice = shopService.getAllShops(pageable);
 
-                org.springframework.data.domain.Page<ShopListDTO> dtoPage = shopsPage
+                org.springframework.data.domain.Slice<ShopListDTO> dtoSlice = shopsSlice
                                 .map(shopService::convertToListDTO);
 
                 return ResponseEntity.ok(ApiResponse.success(
                                 "Retrieved shops page " + page,
-                                dtoPage));
+                                dtoSlice));
         }
 }
