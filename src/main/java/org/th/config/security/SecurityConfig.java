@@ -31,6 +31,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitingFilter rateLimitingFilter;
     private final UserDetailsService userDetailsService;
 
     @Bean
@@ -73,6 +74,7 @@ public class SecurityConfig {
                         // All other endpoints require authentication
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -96,14 +98,23 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.security.cors.allowed-origins:*}")
+    private String allowedOrigins;
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*")); // Allow all origins (for mobile/dev)
+
+        // Handle "allow all" explicitly or split by comma
+        List<String> origins = "*".equals(allowedOrigins)
+                ? List.of("*")
+                : Arrays.asList(allowedOrigins.split(","));
+
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(List.of("Authorization")); // Expose auth headers if needed
+        configuration.setExposedHeaders(List.of("Authorization"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

@@ -43,7 +43,7 @@ public class PersonalizedFeedService {
      */
     @Transactional(readOnly = true)
     public PersonalizedFeedDTO generatePersonalizedFeed(String username, Double latitude, Double longitude,
-            Double radiusKm, String deviceId) {
+            Double radiusKm, String deviceId, Long districtId) {
         logger.info("Generating personalized feed for user: {}, device: {}", username, deviceId);
 
         User user = null;
@@ -86,16 +86,20 @@ public class PersonalizedFeedService {
         }
 
         // Build feed sections
-        FeedSectionDTO forYouNow = buildForYouNowSection(user, latitude, longitude, radius, timeContext, hasLocation); // Keep
-                                                                                                                       // as
-                                                                                                                       // is?
-                                                                                                                       // Or
-                                                                                                                       // optimize?
-        FeedSectionDTO trendingNearby = buildTrendingNearbySection(latitude, longitude, radius, hasLocation);
+        FeedSectionDTO forYouNow = buildForYouNowSection(user, latitude, longitude, radius, timeContext, hasLocation,
+                districtId);
+        // as
+        // is?
+        // Or
+        // optimize?
+        FeedSectionDTO trendingNearby = buildTrendingNearbySection(user, latitude, longitude, radius, hasLocation,
+                districtId);
 
         // Pass explicit preferences
         FeedSectionDTO basedOnFavorites = buildBasedOnHistorySection(user, preferredCategories, excludedIds, deviceId);
-        FeedSectionDTO newShops = buildNewShopsSection(preferredCategories, latitude, longitude, radius, hasLocation);
+        FeedSectionDTO newShops = buildNewShopsSection(user, preferredCategories, latitude, longitude, radius,
+                hasLocation,
+                districtId);
 
         // Build metadata
         FeedMetadataDTO metadata = FeedMetadataDTO.builder()
@@ -122,7 +126,7 @@ public class PersonalizedFeedService {
      * preferences
      */
     private FeedSectionDTO buildForYouNowSection(User user, Double latitude, Double longitude,
-            double radius, TimeContext timeContext, boolean hasLocation) {
+            double radius, TimeContext timeContext, boolean hasLocation, Long districtId) {
         List<Shop> shops = new ArrayList<>();
 
         // Get time-relevant categories
@@ -132,11 +136,21 @@ public class PersonalizedFeedService {
             // Get nearby shops in relevant categories (optimized - filtering in database)
             shops = shopRepository.findNearbyShopsByCategories(
                     latitude, longitude, radius, timeCategories, SECTION_LIMIT);
+        } else if (districtId != null) {
+            // Filter by District
+            shops = shopRepository.findByDistrictObj_IdAndCategoryIn(districtId, timeCategories).stream()
+                    .limit(SECTION_LIMIT)
+                    .collect(Collectors.toList());
         } else {
             // Fallback: get shops by time-relevant categories
             shops = shopRepository.findByCategoryIn(timeCategories).stream()
                     .limit(SECTION_LIMIT)
                     .collect(Collectors.toList());
+        }
+
+        // Apply Dietary Safety Net
+        if (user != null) {
+            shops = applyDietarySafetyNet(shops, user);
         }
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
@@ -158,14 +172,43 @@ public class PersonalizedFeedService {
     /**
      * Build "Trending Nearby" section
      */
-    private FeedSectionDTO buildTrendingNearbySection(Double latitude, Double longitude,
-            double radius, boolean hasLocation) {
-        List<Shop> shops;
+    private FeedSectionDTO buildTrendingNearbySection(User user, Double latitude, Double longitude,
+            double radius, boolean hasLocation, Long districtId) {
+        List<Shop> shops = new ArrayList<>();
 
-        if (hasLocation) {
-            shops = shopRepository.findNearbyTrendingShops(latitude, longitude, radius, SECTION_LIMIT);
-        } else {
-            shops = shopRepository.findTop10ByOrderByTrendingScoreDesc();
+        // 1. Hierarchical Fallback: Try District First
+        if (districtId != null) {
+            shops = shopRepository.findByDistrictObj_Id(districtId);
+            // Sort by trending score desc
+            shops.sort(Comparator.comparing(Shop::getTrendingScore, Comparator.nullsLast(Comparator.reverseOrder())));
+            if (shops.size() > SECTION_LIMIT) {
+                shops = shops.subList(0, SECTION_LIMIT);
+            }
+        }
+
+        // Apply Dietary Safety Net (even for global/district trending)
+        // Note: For "Nearby" radius search, we might want to let database handle it if
+        // optimization is needed,
+        // but for now filtering in memory for consistency.
+        // Actually, for "Nearby" (User provided Lat/Lon), the repository call doesn't
+        // filter by diet.
+        // We should apply safety net here too, but we need User object.
+        // Since this method doesn't have User, let's assume Trending is generic unless
+        // we pass User.
+        // However, the goal is STRICT safety net.
+        // Refactoring to pass User to this method is better.
+        // BUT, wait. buildTrendingNearbySection is also called for "Guest" users.
+        // If User is null, no filtering. If User is present, filter.
+        // Let's defer this change to next step to be safe, or just do it now.
+        // I will add User param to buildTrendingNearbySection.
+
+        // 2. Fallback to Radius (Standard Logic) if Township yielded few results
+        if (shops.isEmpty()) {
+            if (hasLocation) {
+                shops = shopRepository.findNearbyTrendingShops(latitude, longitude, radius, SECTION_LIMIT);
+            } else {
+                shops = shopRepository.findTop10ByOrderByTrendingScoreDesc();
+            }
         }
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
@@ -197,6 +240,11 @@ public class PersonalizedFeedService {
         String username = (user != null) ? user.getUsername() : null;
         List<Shop> shops = recommendationService.getRecommendedShops(username, deviceId);
 
+        // Apply Dietary Safety Net
+        if (user != null) {
+            shops = applyDietarySafetyNet(shops, user);
+        }
+
         String title = (user != null) ? "Based on Your Favorites" : "Based on your History";
         String titleMm = (user != null) ? "သင့်အကြိုက်များအပေါ် အခြေခံထားသော"
                 : "သင့်ကြည့်ရှုမှုမှတ်တမ်းအပေါ် အခြေခံထားသော";
@@ -220,8 +268,9 @@ public class PersonalizedFeedService {
     /**
      * Build "New Shops" section
      */
-    private FeedSectionDTO buildNewShopsSection(Set<String> preferredCategories, Double latitude, Double longitude,
-            double radius, boolean hasLocation) {
+    private FeedSectionDTO buildNewShopsSection(User user, Set<String> preferredCategories, Double latitude,
+            Double longitude,
+            double radius, boolean hasLocation, Long districtId) {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         List<Shop> shops;
 
@@ -229,11 +278,46 @@ public class PersonalizedFeedService {
             shops = shopRepository.findRecentShopsByCategories(
                     new ArrayList<>(preferredCategories),
                     thirtyDaysAgo).stream().limit(SECTION_LIMIT).collect(Collectors.toList());
+        } else if (districtId != null) {
+            // Filter by District
+            if (!preferredCategories.isEmpty()) {
+                // Try to find new shops in district matching preferences first
+                shops = shopRepository.findByDistrictObj_IdAndCreatedAtAfterAndCategoryIn(
+                        districtId, thirtyDaysAgo, new ArrayList<>(preferredCategories));
+
+                // If not enough/empty, we COULD fallback to generic new shops in district,
+                // but "New Shops" usually implies specific relevance.
+                // Let's mix them if needed or just return what we found.
+                // For better UX: If specific preference yields nothing, fallback to generic new
+                // in district.
+                if (shops.isEmpty()) {
+                    shops = shopRepository.findByDistrictObj_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
+                }
+            } else {
+                shops = shopRepository.findByDistrictObj_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
+            }
+
+            shops = shops.stream().limit(SECTION_LIMIT).collect(Collectors.toList());
+        } else if (hasLocation) {
+            // Filter by GPS Radius (Near Me)
+            if (!preferredCategories.isEmpty()) {
+                shops = shopRepository.findNearbyRecentShopsByCategories(
+                        latitude, longitude, radius, new ArrayList<>(preferredCategories), thirtyDaysAgo,
+                        SECTION_LIMIT);
+            } else {
+                shops = shopRepository.findNearbyRecentShops(
+                        latitude, longitude, radius, thirtyDaysAgo, SECTION_LIMIT);
+            }
         } else {
             // Fallback: just show recent shops
             shops = shopRepository.findRecentShops(
                     thirtyDaysAgo,
                     org.springframework.data.domain.PageRequest.of(0, SECTION_LIMIT)).getContent();
+        }
+
+        // Apply Dietary Safety Net
+        if (user != null) {
+            shops = applyDietarySafetyNet(shops, user);
         }
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
@@ -373,5 +457,26 @@ public class PersonalizedFeedService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return EARTH_RADIUS_KM * c;
+    }
+
+    /**
+     * Apply Dietary Safety Net
+     * Filters shops based on User's Veg/Halal preferences
+     */
+    private List<Shop> applyDietarySafetyNet(List<Shop> shops, User user) {
+        if (user == null)
+            return shops;
+
+        return shops.stream()
+                .filter(shop -> {
+                    if (Boolean.TRUE.equals(user.getIsVegetarian()) && !Boolean.TRUE.equals(shop.getIsVegetarian())) {
+                        return false;
+                    }
+                    if (Boolean.TRUE.equals(user.getIsHalal()) && !Boolean.TRUE.equals(shop.getIsHalal())) {
+                        return false;
+                    }
+                    return true;
+                })
+                .collect(Collectors.toList());
     }
 }

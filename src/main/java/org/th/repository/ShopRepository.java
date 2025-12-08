@@ -235,6 +235,38 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
         List<LocationCountDTO> countShopsByTownship();
 
         /**
+         * Find shops by District Object ID
+         */
+        List<Shop> findByDistrictObj_Id(Long districtId);
+
+        /**
+         * Find shops by City ID (via District)
+         */
+        List<Shop> findByDistrictObj_City_Id(Long cityId);
+
+        /**
+         * Find shops by active status and City Slug
+         */
+        @Query("SELECT s FROM Shop s JOIN s.districtObj d JOIN d.city c WHERE s.isActive = true AND c.slug = :citySlug")
+        Page<Shop> findByCitySlug(@Param("citySlug") String citySlug, Pageable pageable);
+
+        /**
+         * Find shops by District ID and Categories
+         */
+        List<Shop> findByDistrictObj_IdAndCategoryIn(Long districtId, List<String> categories);
+
+        /**
+         * Find new shops by District ID (created after date)
+         */
+        List<Shop> findByDistrictObj_IdAndCreatedAtAfter(Long districtId, LocalDateTime date);
+
+        /**
+         * Find new shops by District ID filtered by Category
+         */
+        List<Shop> findByDistrictObj_IdAndCreatedAtAfterAndCategoryIn(Long districtId, LocalDateTime date,
+                        List<String> categories);
+
+        /**
          * Find shops in given categories, excluding specific IDs
          * Used for recommendations
          */
@@ -314,6 +346,45 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "AND s.createdAt >= :since " +
                         "ORDER BY s.createdAt DESC")
         Page<Shop> findRecentShops(@Param("since") LocalDateTime since, Pageable pageable);
+
+        /**
+         * Find nearby recent shops (GPS Fallback for New Shops)
+         */
+        @Query(value = "SELECT *, " +
+                        "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
+                        "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
+                        "sin(radians(latitude)))) AS distance " +
+                        "FROM shops " +
+                        "WHERE is_active = true AND created_at >= :since " +
+                        "HAVING distance < :radiusInKm " +
+                        "ORDER BY created_at DESC, distance ASC " +
+                        "LIMIT :limit", nativeQuery = true)
+        List<Shop> findNearbyRecentShops(
+                        @Param("latitude") Double latitude,
+                        @Param("longitude") Double longitude,
+                        @Param("radiusInKm") Double radiusInKm,
+                        @Param("since") LocalDateTime since,
+                        @Param("limit") int limit);
+
+        /**
+         * Find nearby recent shops filtered by category
+         */
+        @Query(value = "SELECT *, " +
+                        "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
+                        "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
+                        "sin(radians(latitude)))) AS distance " +
+                        "FROM shops " +
+                        "WHERE is_active = true AND created_at >= :since AND category IN :categories " +
+                        "HAVING distance < :radiusInKm " +
+                        "ORDER BY created_at DESC, distance ASC " +
+                        "LIMIT :limit", nativeQuery = true)
+        List<Shop> findNearbyRecentShopsByCategories(
+                        @Param("latitude") Double latitude,
+                        @Param("longitude") Double longitude,
+                        @Param("radiusInKm") Double radiusInKm,
+                        @Param("categories") List<String> categories,
+                        @Param("since") LocalDateTime since,
+                        @Param("limit") int limit);
 
         /**
          * Find shops by IDs with photos eagerly loaded (fixes N+1 in DTO conversion)

@@ -32,6 +32,7 @@ public class PersonalizedFeedController {
                         @Parameter(description = "User's current latitude (optional)") @RequestParam(required = false) Double latitude,
                         @Parameter(description = "User's current longitude (optional)") @RequestParam(required = false) Double longitude,
                         @Parameter(description = "Search radius in kilometers (default: 5)") @RequestParam(required = false, defaultValue = "5.0") Double radiusKm,
+                        @Parameter(description = "Filter by District ID") @RequestParam(required = false) Long districtId,
                         @Parameter(description = "Device ID for cross-reference") @RequestHeader(value = "X-Device-ID", required = false) String deviceId) {
 
                 String username = null;
@@ -40,7 +41,7 @@ public class PersonalizedFeedController {
                 }
 
                 PersonalizedFeedDTO feed = personalizedFeedService.generatePersonalizedFeed(
-                                username, latitude, longitude, radiusKm, deviceId);
+                                username, latitude, longitude, radiusKm, deviceId, districtId);
 
                 return ResponseEntity.ok(
                                 ApiResponse.success("Personalized feed generated successfully", feed));
@@ -55,10 +56,11 @@ public class PersonalizedFeedController {
                         @Parameter(description = "User's current latitude (optional)") @RequestParam(required = false) Double latitude,
                         @Parameter(description = "User's current longitude (optional)") @RequestParam(required = false) Double longitude,
                         @Parameter(description = "Search radius in kilometers (default: 5)") @RequestParam(required = false, defaultValue = "5.0") Double radiusKm,
+                        @Parameter(description = "Filter by District ID") @RequestParam(required = false) Long districtId,
                         @Parameter(description = "Device ID for history-based personalization") @RequestHeader(value = "X-Device-ID", required = false) String deviceId) {
                 // For guest users, pass null username but include deviceId
                 PersonalizedFeedDTO feed = personalizedFeedService.generatePersonalizedFeed(
-                                null, latitude, longitude, radiusKm, deviceId);
+                                null, latitude, longitude, radiusKm, deviceId, districtId);
 
                 return ResponseEntity.ok(
                                 ApiResponse.success("Guest feed generated successfully", feed));

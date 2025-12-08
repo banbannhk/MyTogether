@@ -158,5 +158,9 @@ public class Shop {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "district_id")
+    private org.th.entity.District districtObj;
     // ==========================================
 }
