@@ -29,7 +29,7 @@ public class RefreshTokenService {
     private DeviceTrackingService deviceTrackingService;
 
     /**
-     * Create new refresh token
+     * Create new refresh token test
      */
     public RefreshToken createRefreshToken(Long userId, String deviceId, HttpServletRequest request) {
 
