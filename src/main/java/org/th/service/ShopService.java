@@ -125,7 +125,6 @@ public class ShopService {
      */
     @Transactional(readOnly = true)
     public Optional<Shop> getShopById(Long shopId) {
-        logger.info("Fetching shop with ID: {}", shopId);
         // Use optimized queries to fetch details separately (to avoid
         // MultipleBagFetchException)
         // Hibernate cannot fetch multiple List collections in a single query

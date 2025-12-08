@@ -6,9 +6,15 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.util.Arrays;
+import jakarta.servlet.http.HttpServletRequest;
+import java.lang.reflect.Parameter;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Aspect
 @Component
@@ -38,6 +44,15 @@ public class LoggingAspect {
     }
 
     /**
+     * Pointcut that matches only controller methods.
+     */
+    @Pointcut("execution(* org.th.controller..*(..))")
+    public void controllerPackagePointcut() {
+        // Method is empty as this is just a Pointcut, the implementations are in the
+        // advices.
+    }
+
+    /**
      * Advice that logs when a method is entered and exited, calculating execution
      * time.
      *
@@ -45,57 +60,181 @@ public class LoggingAspect {
      * @return result
      * @throws Throwable throws IllegalArgumentException
      */
-    @Around("applicationPackagePointcut() && springBeanPointcut()")
+    @Around("controllerPackagePointcut() && springBeanPointcut()")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         long start = System.currentTimeMillis();
 
-        if (log.isDebugEnabled()) {
-            log.debug("Enter: {}.{}() with argument[s] = {}", joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName(), getMaskedArgs(joinPoint.getArgs()));
+        // Get HTTP request details if available (for controllers)
+        String httpInfo = getHttpRequestInfo();
+
+        // Get parameter names and values
+        String paramsInfo = getParametersInfo(joinPoint);
+
+        // Get MDC context for logging
+        String mdcContext = getMDCContext();
+
+        // Log method entry with HTTP info and parameters
+        if (httpInfo != null) {
+            log.info("Start: {}.{}() {} - Params: {}{}",
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    httpInfo,
+                    paramsInfo,
+                    mdcContext);
+        } else {
+            log.info("Start: {}.{}() - Params: {}{}",
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    paramsInfo,
+                    mdcContext);
         }
 
         try {
             Object result = joinPoint.proceed();
 
             long executionTime = System.currentTimeMillis() - start;
+            double executionTimeSeconds = executionTime / 1000.0;
 
-            log.info("Finished: {}.{}() - Execution Time: {} ms",
-                    joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName(),
-                    executionTime);
+            // Determine performance indicator
+            String performanceIndicator = "";
+            if (executionTime > 1000) {
+                performanceIndicator = " - ⚠️ VERY SLOW - NEEDS OPTIMIZATION";
+                log.warn("Finished: {}.{}() - Execution Time: {} ms ({} s){}{}",
+                        joinPoint.getSignature().getDeclaringTypeName(),
+                        joinPoint.getSignature().getName(),
+                        executionTime,
+                        String.format("%.2f", executionTimeSeconds),
+                        performanceIndicator,
+                        mdcContext);
+            } else if (executionTime > 300) {
+                performanceIndicator = " - ⚠️ SLOW - Consider optimization";
+                log.info("Finished: {}.{}() - Execution Time: {} ms ({} s){}{}",
+                        joinPoint.getSignature().getDeclaringTypeName(),
+                        joinPoint.getSignature().getName(),
+                        executionTime,
+                        String.format("%.2f", executionTimeSeconds),
+                        performanceIndicator,
+                        mdcContext);
+            } else {
+                log.info("Finished: {}.{}() - Execution Time: {} ms ({} s){}",
+                        joinPoint.getSignature().getDeclaringTypeName(),
+                        joinPoint.getSignature().getName(),
+                        executionTime,
+                        String.format("%.2f", executionTimeSeconds),
+                        mdcContext);
+            }
 
             return result;
         } catch (IllegalArgumentException e) {
-            log.error("Illegal argument: {} in {}.{}()", getMaskedArgs(joinPoint.getArgs()),
-                    joinPoint.getSignature().getDeclaringTypeName(), joinPoint.getSignature().getName());
+            log.error("Illegal argument: {} in {}.{}(){}", getParametersInfo(joinPoint),
+                    joinPoint.getSignature().getDeclaringTypeName(),
+                    joinPoint.getSignature().getName(),
+                    mdcContext);
             throw e;
         }
     }
 
     /**
-     * Helper method to mask sensitive arguments.
-     *
-     * @param args Array of arguments
-     * @return String representation of arguments with sensitive data masked
+     * Get HTTP request information (method and URI) if available.
      */
-    private String getMaskedArgs(Object[] args) {
-        if (args == null || args.length == 0) {
-            return "[]";
+    private String getHttpRequestInfo() {
+        try {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder
+                    .getRequestAttributes();
+            if (attributes != null) {
+                HttpServletRequest request = attributes.getRequest();
+                return String.format("[%s %s]", request.getMethod(), request.getRequestURI());
+            }
+        } catch (Exception e) {
+            // Not in a web request context
+        }
+        return null;
+    }
+
+    /**
+     * Get parameter names and values as a formatted string.
+     */
+    private String getParametersInfo(ProceedingJoinPoint joinPoint) {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Parameter[] parameters = signature.getMethod().getParameters();
+        Object[] args = joinPoint.getArgs();
+
+        if (parameters.length == 0) {
+            return "none";
         }
 
-        return Arrays.toString(Arrays.stream(args).map(arg -> {
-            if (arg == null)
-                return "null";
-            String str = arg.toString();
-            // Simple heuristic to detect sensitive data (can be improved with
-            // reflection/annotations)
-            if (str.toLowerCase().contains("password") ||
-                    str.toLowerCase().contains("token") ||
-                    str.toLowerCase().contains("secret") ||
-                    str.toLowerCase().contains("key")) {
-                return "*****";
+        Map<String, Object> paramMap = new LinkedHashMap<>();
+        for (int i = 0; i < parameters.length; i++) {
+            String paramName = parameters[i].getName();
+            Object paramValue = i < args.length ? args[i] : null;
+
+            // Skip framework objects that add noise to logs
+            if (paramValue != null) {
+                String className = paramValue.getClass().getName();
+                if (className.startsWith("jakarta.servlet.") ||
+                        className.startsWith("org.springframework.") ||
+                        className.contains("HttpServletRequest") ||
+                        className.contains("HttpServletResponse")) {
+                    continue; // Skip this parameter
+                }
             }
-            return arg;
-        }).toArray());
+
+            paramMap.put(paramName, maskSensitiveValue(paramName, paramValue));
+        }
+
+        return paramMap.isEmpty() ? "none" : paramMap.toString();
+    }
+
+    /**
+     * Get MDC context as a formatted string.
+     */
+    private String getMDCContext() {
+        String requestId = org.slf4j.MDC.get("requestId");
+        String userId = org.slf4j.MDC.get("userId");
+        String deviceId = org.slf4j.MDC.get("deviceId");
+
+        StringBuilder context = new StringBuilder();
+        if (requestId != null || userId != null || deviceId != null) {
+            context.append(" [");
+            if (requestId != null) {
+                context.append("reqId=").append(requestId.substring(0, Math.min(8, requestId.length())));
+            }
+            if (userId != null) {
+                if (context.length() > 2)
+                    context.append(", ");
+                context.append("user=").append(userId);
+            }
+            if (deviceId != null) {
+                if (context.length() > 2)
+                    context.append(", ");
+                context.append("device=").append(deviceId);
+            }
+            context.append("]");
+        }
+        return context.toString();
+    }
+
+    /**
+     * Mask sensitive parameter values.
+     */
+    private Object maskSensitiveValue(String paramName, Object value) {
+        if (value == null) {
+            return "null";
+        }
+
+        String lowerName = paramName.toLowerCase();
+        String valueStr = value.toString();
+
+        // Mask sensitive parameters
+        if (lowerName.contains("password") ||
+                lowerName.contains("token") ||
+                lowerName.contains("secret") ||
+                lowerName.contains("key") ||
+                valueStr.toLowerCase().contains("password") ||
+                valueStr.toLowerCase().contains("token")) {
+            return "*****";
+        }
+
+        return value;
     }
 }

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    
+    <!-- Console appender with MDC fields -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p [%X{requestId}] [%X{userId}] [%X{deviceId}] --- [%15.15t] %-40.40logger{39} : %m%n</pattern>
+        </encoder>
+    </appender>
 
     <springProperty scope="context" name="LOGTAIL_SOURCE_TOKEN" source="logtail.source-token" defaultValue=""/>
 
@@ -9,15 +15,26 @@
     <appender name="LOGTAIL" class="com.logtail.logback.LogtailAppender">
         <appName>MyTogether</appName>
         <sourceToken>${LOGTAIL_SOURCE_TOKEN}</sourceToken>
-        <mdcFields>requestId,userId</mdcFields>
-        <mdcTypes>string,string</mdcTypes>
+        <ingestUrl>https://s1620782.eu-nbg-2.betterstackdata.com</ingestUrl>
+        <mdcFields>requestId,userId,deviceId</mdcFields>
+        <mdcTypes>string,string,string</mdcTypes>
     </appender>
 
     <!-- Default local logging -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOGTAIL"/>
     </root>
 
+    <!-- Suppress noisy loggers -->
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="WARN"/>
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="org.springframework.security.web.FilterChainProxy" level="WARN"/>
+    <logger name="org.springframework.security.web.access.intercept.FilterSecurityInterceptor" level="WARN"/>
+    <logger name="org.springframework.web" level="INFO"/>
+    <logger name="com.zaxxer.hikari" level="WARN"/>
+    
     <!-- Production logging (Activate Logtail only in prod) -->
     <springProfile name="prod">
         <root level="INFO">
