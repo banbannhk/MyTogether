@@ -190,6 +190,14 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
         List<Shop> findTop10ByOrderByTrendingScoreDesc();
 
         /**
+         * Find shops by category ordered by rating
+         * 
+         * @param category Shop category
+         * @return List of shops in category
+         */
+        List<Shop> findByCategoryOrderByRatingAvgDesc(String category);
+
+        /**
          * Find shops by category
          * 
          * @param category Shop category

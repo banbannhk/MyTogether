@@ -20,81 +20,91 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TrendingService {
 
-    private static final Logger logger = LoggerFactory.getLogger(TrendingService.class);
+        private static final Logger logger = LoggerFactory.getLogger(TrendingService.class);
 
-    private final ShopRepository shopRepository;
-    private final UserActivityRepository userActivityRepository;
-    private final ReviewRepository reviewRepository;
-    private final FavoriteRepository favoriteRepository;
+        private final ShopRepository shopRepository;
+        private final UserActivityRepository userActivityRepository;
+        private final ReviewRepository reviewRepository;
+        private final FavoriteRepository favoriteRepository;
 
-    // Weights for scoring
-    private static final double VIEW_WEIGHT = 1.0;
-    private static final double FAVORITE_WEIGHT = 5.0;
-    private static final double REVIEW_WEIGHT = 10.0;
-    private static final double CONVERSION_WEIGHT = 50.0; // High intent actions
+        // Weights for scoring
+        private static final double VIEW_WEIGHT = 1.0;
+        private static final double FAVORITE_WEIGHT = 5.0;
+        private static final double REVIEW_WEIGHT = 10.0;
+        private static final double CONVERSION_WEIGHT = 50.0; // High intent actions
 
-    /**
-     * Calculate trending scores for all shops
-     * Runs every hour
-     */
-    @Scheduled(fixedRate = 3600000) // 1 hour in milliseconds
-    @Transactional
-    @org.springframework.cache.annotation.CacheEvict(value = "trendingShops", allEntries = true)
-    public void updateTrendingScores() {
-        logger.info("Starting trending score calculation...");
+        /**
+         * Calculate trending scores for all shops
+         * Runs every hour
+         */
+        @Scheduled(fixedRate = 3600000) // 1 hour in milliseconds
+        @Transactional
+        @org.springframework.cache.annotation.CacheEvict(value = "trendingShops", allEntries = true)
+        public void updateTrendingScores() {
+                logger.info("Starting trending score calculation...");
 
-        List<Shop> allShops = shopRepository.findAll();
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime oneDayAgo = now.minusDays(1);
-        LocalDateTime sevenDaysAgo = now.minusDays(7);
+                List<Shop> allShops = shopRepository.findAll();
+                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime oneDayAgo = now.minusDays(1);
+                LocalDateTime sevenDaysAgo = now.minusDays(7);
 
-        for (Shop shop : allShops) {
-            try {
-                // 1. Recent Views (Last 24h)
-                long views = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                        shop.getId(), ActivityType.VIEW_SHOP, oneDayAgo);
+                for (Shop shop : allShops) {
+                        try {
+                                // 1. Recent Views (Last 24h)
+                                long views = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                                                shop.getId(), ActivityType.VIEW_SHOP, oneDayAgo);
 
-                // 2. Recent Favorites (Last 7d)
-                long favorites = favoriteRepository.countByShopIdAndCreatedAtAfter(
-                        shop.getId(), sevenDaysAgo);
+                                // 2. Recent Favorites (Last 7d)
+                                long favorites = favoriteRepository.countByShopIdAndCreatedAtAfter(
+                                                shop.getId(), sevenDaysAgo);
 
-                // 3. Recent Reviews (Last 7d)
-                long reviews = reviewRepository.countByShopIdAndCreatedAtAfter(
-                        shop.getId(), sevenDaysAgo);
+                                // 3. Recent Reviews (Last 7d)
+                                long reviews = reviewRepository.countByShopIdAndCreatedAtAfter(
+                                                shop.getId(), sevenDaysAgo);
 
-                // 4. Conversion Events (Last 7d) - High Intent
-                long directions = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                        shop.getId(), ActivityType.CLICK_DIRECTIONS, sevenDaysAgo);
-                long calls = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                        shop.getId(), ActivityType.CLICK_CALL, sevenDaysAgo);
-                long shares = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                        shop.getId(), ActivityType.CLICK_SHARE, sevenDaysAgo);
+                                // 4. Conversion Events (Last 7d) - High Intent
+                                long directions = userActivityRepository
+                                                .countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                                                                shop.getId(), ActivityType.CLICK_DIRECTIONS,
+                                                                sevenDaysAgo);
+                                long calls = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                                                shop.getId(), ActivityType.CLICK_CALL, sevenDaysAgo);
+                                long shares = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
+                                                shop.getId(), ActivityType.CLICK_SHARE, sevenDaysAgo);
 
-                long conversions = directions + calls + shares;
+                                long conversions = directions + calls + shares;
 
-                // Calculate Score
-                double score = (views * VIEW_WEIGHT) +
-                        (favorites * FAVORITE_WEIGHT) +
-                        (reviews * REVIEW_WEIGHT) +
-                        (conversions * CONVERSION_WEIGHT);
+                                // Calculate Score
+                                double score = (views * VIEW_WEIGHT) +
+                                                (favorites * FAVORITE_WEIGHT) +
+                                                (reviews * REVIEW_WEIGHT) +
+                                                (conversions * CONVERSION_WEIGHT);
 
-                shop.setTrendingScore(score);
+                                shop.setTrendingScore(score);
 
-            } catch (Exception e) {
-                logger.error("Error calculating score for shop {}: {}", shop.getId(), e.getMessage());
-            }
+                        } catch (Exception e) {
+                                logger.error("Error calculating score for shop {}: {}", shop.getId(), e.getMessage());
+                        }
+                }
+
+                shopRepository.saveAll(allShops);
+                logger.info("Trending score calculation completed for {} shops.", allShops.size());
         }
 
-        shopRepository.saveAll(allShops);
-        logger.info("Trending score calculation completed for {} shops.", allShops.size());
-    }
+        /**
+         * Get top trending shops (cached for 5 minutes)
+         */
+        @org.springframework.cache.annotation.Cacheable(value = "trendingShops", key = "'top10'")
+        public List<Shop> getTopTrendingShops() {
+                logger.debug("Fetching top trending shops from database");
+                List<Shop> trendingShops = shopRepository.findTop10ByOrderByTrendingScoreDesc();
 
-    /**
-     * Get top trending shops (cached for 5 minutes)
-     */
-    @org.springframework.cache.annotation.Cacheable(value = "trendingShops", key = "'top10'")
-    public List<Shop> getTopTrendingShops() {
-        logger.debug("Fetching top trending shops from database");
-        return shopRepository.findTop10ByOrderByTrendingScoreDesc();
-    }
+                if (trendingShops.isEmpty()) {
+                        return trendingShops;
+                }
+
+                // Fetch with photos to ensure no LazyInitializationException in Controller
+                List<Long> ids = trendingShops.stream().map(Shop::getId).collect(java.util.stream.Collectors.toList());
+                return shopRepository.findByIdInWithPhotos(ids);
+        }
 }

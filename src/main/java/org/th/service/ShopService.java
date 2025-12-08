@@ -30,6 +30,20 @@ public class ShopService {
     private static final Double MAX_RADIUS_KM = 50.0;
 
     /**
+     * Helper to fetch shops with photos to avoid N+1 and LazyInit exceptions
+     * 
+     * @param shops Initial list of shops (which might be proxies or lack photos)
+     * @return List of shops with photos fully loaded
+     */
+    private List<Shop> fetchWithPhotos(List<Shop> shops) {
+        if (shops.isEmpty()) {
+            return shops;
+        }
+        List<Long> shopIds = shops.stream().map(Shop::getId).collect(Collectors.toList());
+        return shopRepository.findByIdInWithPhotos(shopIds);
+    }
+
+    /**
      * Get shops near a user's location
      * 
      * @param userLatitude  User's current latitude
@@ -43,11 +57,14 @@ public class ShopService {
         // Validate and normalize radius
         Double radius = normalizeRadius(radiusInKm);
 
-        // Query nearby shops
+        // Query nearby shops (Returns IDs or basic entities)
         List<Shop> nearbyShops = shopRepository.findNearbyShops(userLatitude, userLongitude, radius);
 
-        logger.info("Found {} shops within {} km", nearbyShops.size(), radius);
-        return nearbyShops;
+        // Fetch with photos to be safe for DTO conversion
+        List<Shop> initializedShops = fetchWithPhotos(nearbyShops);
+
+        logger.info("Found {} shops within {} km", initializedShops.size(), radius);
+        return initializedShops;
     }
 
     /**
@@ -69,8 +86,11 @@ public class ShopService {
         List<Shop> nearbyShops = shopRepository.findNearbyShopsByCategory(
                 userLatitude, userLongitude, radius, category);
 
-        logger.info("Found {} {} shops within {} km", nearbyShops.size(), category, radius);
-        return nearbyShops;
+        // Fetch with photos
+        List<Shop> initializedShops = fetchWithPhotos(nearbyShops);
+
+        logger.info("Found {} {} shops within {} km", initializedShops.size(), category, radius);
+        return initializedShops;
     }
 
     /**
@@ -116,8 +136,11 @@ public class ShopService {
         List<Shop> ratedShops = shopRepository.findNearbyShopsByRating(
                 userLatitude, userLongitude, radius, minRating);
 
-        logger.info("Found {} shops with rating >= {}", ratedShops.size(), minRating);
-        return ratedShops;
+        // Fetch with photos
+        List<Shop> initializedShops = fetchWithPhotos(ratedShops);
+
+        logger.info("Found {} shops with rating >= {}", initializedShops.size(), minRating);
+        return initializedShops;
     }
 
     /**
@@ -135,10 +158,22 @@ public class ShopService {
         Optional<Shop> shopOpt = shopRepository.findByIdWithDetails(shopId);
 
         // If shop exists, fetch menu items and operating hours separately
+        // If shop exists, fully initialize lazy collections for Caching/Controller use
         shopOpt.ifPresent(shop -> {
-            // These queries load the collections into the persistence context
-            shopRepository.findMenuCategoriesWithItems(shopId);
-            shopRepository.findOperatingHoursByShopId(shopId);
+            // Explicitly trigger loading of lazy collections
+            if (shop.getMenuCategories() != null) {
+                shop.getMenuCategories().forEach(category -> {
+                    if (category.getItems() != null) {
+                        category.getItems().size(); // Initialize menu items
+                    }
+                });
+            }
+            if (shop.getOperatingHours() != null) {
+                shop.getOperatingHours().size(); // Initialize operating hours
+            }
+            if (shop.getPhotos() != null) {
+                shop.getPhotos().size(); // Initialize photos
+            }
         });
 
         return shopOpt;
@@ -153,7 +188,25 @@ public class ShopService {
     @Cacheable(value = "shopDetails", key = "#slug")
     public Shop getShopBySlug(String slug) {
         logger.info("Fetching shop with slug: {}", slug);
-        return shopRepository.findBySlug(slug);
+        Shop shop = shopRepository.findBySlug(slug);
+
+        // Initialize lazy collections
+        if (shop != null) {
+            if (shop.getMenuCategories() != null) {
+                shop.getMenuCategories().forEach(category -> {
+                    if (category.getItems() != null) {
+                        category.getItems().size();
+                    }
+                });
+            }
+            if (shop.getOperatingHours() != null) {
+                shop.getOperatingHours().size();
+            }
+            if (shop.getPhotos() != null) {
+                shop.getPhotos().size();
+            }
+        }
+        return shop;
     }
 
     /**
@@ -213,15 +266,20 @@ public class ShopService {
     }
 
     /**
-     * Get all shops in a specific category
+     * Get all shops in a category
      * 
      * @param category Shop category
-     * @return List of shops in category
+     * @return List of shops in the category
      */
     @Cacheable("shopsByCategory")
     public List<Shop> getShopsByCategory(String category) {
-        logger.info("Fetching shops in category: {}", category);
-        return shopRepository.findByCategory(category);
+        logger.info("Fetching all shops in category: {}", category);
+        List<Shop> shops = shopRepository.findByCategoryOrderByRatingAvgDesc(category);
+
+        // Fetch with photos
+        List<Shop> initializedShops = fetchWithPhotos(shops);
+
+        return initializedShops;
     }
 
     /**
@@ -324,16 +382,19 @@ public class ShopService {
     // ==================== SEARCH METHODS ====================
 
     /**
-     * Universal search - searches both shop names and menu items
+     * Search shops by name or food
      * 
-     * @param keyword Search keyword
+     * @param keyword Search term
      * @return List of shops matching the keyword
      */
     public List<Shop> searchShops(String keyword) {
         logger.info("Searching shops with keyword: {}", keyword);
         List<Shop> results = shopRepository.searchShops(keyword);
-        logger.info("Found {} shops matching '{}'", results.size(), keyword);
-        return results;
+
+        List<Shop> initializedResults = fetchWithPhotos(results);
+
+        logger.info("Found {} shops matching '{}'", initializedResults.size(), keyword);
+        return initializedResults;
     }
 
     /**
@@ -345,8 +406,11 @@ public class ShopService {
     public List<Shop> searchByShopName(String name) {
         logger.info("Searching shops by name: {}", name);
         List<Shop> results = shopRepository.searchByShopName(name);
-        logger.info("Found {} shops matching name '{}'", results.size(), name);
-        return results;
+
+        List<Shop> initializedResults = fetchWithPhotos(results);
+
+        logger.info("Found {} shops matching name '{}'", initializedResults.size(), name);
+        return initializedResults;
     }
 
     /**
@@ -358,8 +422,11 @@ public class ShopService {
     public List<Shop> searchByFoodName(String foodName) {
         logger.info("Searching shops by food name: {}", foodName);
         List<Shop> results = shopRepository.searchByMenuItemName(foodName);
-        logger.info("Found {} shops with food matching '{}'", results.size(), foodName);
-        return results;
+
+        List<Shop> initializedResults = fetchWithPhotos(results);
+
+        logger.info("Found {} shops with food matching '{}'", initializedResults.size(), foodName);
+        return initializedResults;
     }
 
     // ==================== DTO MAPPING METHODS ====================

@@ -124,6 +124,18 @@ public class RecommendationService {
             }
         }
 
-        return recommendations.stream().limit(10).collect(Collectors.toList());
+        List<Shop> finalRecommendations = recommendations.stream().limit(10).collect(Collectors.toList());
+
+        if (finalRecommendations.isEmpty()) {
+            return finalRecommendations;
+        }
+
+        // Fetch with photos to ensure no LazyInitializationException
+        List<Long> ids = finalRecommendations.stream().map(Shop::getId).collect(Collectors.toList());
+        // Use findByIdInWithPhotos from ShopRepository (need to expose it or cast)
+        // Since RecommendationService has ShopRepository, we can just call it if it's
+        // there.
+        // But wait, findByIdInWithPhotos is in ShopRepository interface.
+        return shopRepository.findByIdInWithPhotos(ids);
     }
 }

@@ -56,12 +56,6 @@ public class ShopController {
 
                 List<Shop> shops = shopService.getNearbyShops(lat, lon, radius);
 
-                // Reload with photos to avoid N+1 query
-                if (!shops.isEmpty()) {
-                        List<Long> shopIds = shops.stream().map(Shop::getId).collect(Collectors.toList());
-                        shops = shopRepository.findByIdInWithPhotos(shopIds);
-                }
-
                 List<ShopListDTO> shopDTOs = shops.stream()
                                 .map(shopService::convertToListDTO)
                                 .collect(Collectors.toList());
