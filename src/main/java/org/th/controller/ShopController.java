@@ -353,10 +353,7 @@ public class ShopController {
 
                 org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
                                 size);
-                org.springframework.data.domain.Slice<Shop> shopsSlice = shopService.getAllShops(pageable);
-
-                org.springframework.data.domain.Slice<ShopListDTO> dtoSlice = shopsSlice
-                                .map(shopService::convertToListDTO);
+                org.springframework.data.domain.Slice<ShopListDTO> dtoSlice = shopService.getAllShops(pageable);
 
                 return ResponseEntity.ok(ApiResponse.success(
                                 "Retrieved shops page " + page,

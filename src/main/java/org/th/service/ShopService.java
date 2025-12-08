@@ -153,27 +153,47 @@ public class ShopService {
     }
 
     /**
-     * Get all shops with pagination (Optimized with Slice)
+     * Get all shops with pagination (Optimized with Slice + DTO Projection)
      * 
      * @param pageable Pagination information
-     * @return Slice of shops (no total count)
+     * @return Slice of ShopListDTO (no total count)
      */
-    public Slice<Shop> getAllShops(Pageable pageable) {
+    @Transactional(readOnly = true)
+    public Slice<org.th.dto.ShopListDTO> getAllShops(Pageable pageable) {
         logger.info("Fetching all shops slice: {}", pageable.getPageNumber());
 
         // 1. Fetch Slice of Shops (No Count Query)
         Slice<Shop> shopSlice = shopRepository.findByIsActiveTrue(pageable);
 
-        // 2. Optimization: Fetch eager photos for this slice
+        // 2. Optimization: Fetch eager photos for this slice if needed
+        // Note: Even though we fetched them, we need to ensure we use the *managed*
+        // entities
+        // or explicitly map them.
         if (!shopSlice.isEmpty()) {
             List<Long> shopIds = shopSlice.getContent().stream()
                     .map(Shop::getId)
                     .collect(Collectors.toList());
 
-            shopRepository.findByIdInWithPhotos(shopIds);
+            // This fetches shops + photos into the persistence context.
+            // Since we are in a transaction, standard Hibernate behavior *should*
+            // associate these with the L1 cache.
+            // However, to be 100% safe against "Multiple Bag Fetch" / detached entity
+            // issues,
+            // we will fetch the fully loaded list and use THAT for mapping.
+            List<Shop> loadedShops = shopRepository.findByIdInWithPhotos(shopIds);
+
+            // Create a map for easy lookup
+            java.util.Map<Long, Shop> shopMap = loadedShops.stream()
+                    .collect(Collectors.toMap(Shop::getId, s -> s));
+
+            // Map the ORIGINAL slice (preserving order/metadata) using the LOADED entities
+            return shopSlice.map(s -> {
+                Shop loaded = shopMap.getOrDefault(s.getId(), s);
+                return convertToListDTO(loaded);
+            });
         }
 
-        return shopSlice;
+        return shopSlice.map(this::convertToListDTO);
     }
 
     /**
