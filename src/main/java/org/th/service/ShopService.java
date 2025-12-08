@@ -71,6 +71,15 @@ public class ShopService {
     }
 
     /**
+     * Get all unique shop categories
+     * Cached for 1 hour (configured in CacheConfig)
+     */
+    @org.springframework.cache.annotation.Cacheable("categories")
+    public List<String> getAllCategories() {
+        return shopRepository.findDistinctCategories();
+    }
+
+    /**
      * Get nearby shops filtered by category
      * 
      * @param userLatitude  User's current latitude

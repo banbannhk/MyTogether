@@ -137,6 +137,17 @@ public class ShopController {
         }
 
         /**
+         * Get all shop categories
+         */
+        @GetMapping("/categories")
+        @RateLimit(tier = Tier.PUBLIC)
+        @Operation(summary = "Get all categories", description = "Get list of all available shop categories")
+        public ResponseEntity<ApiResponse<List<String>>> getAllCategories() {
+                List<String> categories = shopService.getAllCategories();
+                return ResponseEntity.ok(ApiResponse.success("Categories retrieved", categories));
+        }
+
+        /**
          * Get shops by category (with optional location filtering)
          */
         @GetMapping("/category/{category}")

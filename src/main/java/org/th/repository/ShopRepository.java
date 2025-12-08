@@ -20,6 +20,12 @@ import java.util.Optional;
 public interface ShopRepository extends JpaRepository<Shop, Long> {
 
         /**
+         * Find all distinct shop categories
+         */
+        @Query("SELECT DISTINCT s.category FROM Shop s WHERE s.isActive = true AND s.category IS NOT NULL ORDER BY s.category")
+        List<String> findDistinctCategories();
+
+        /**
          * Find shop by ID with photos only (avoid MultipleBagFetchException)
          * Other collections are fetched separately
          */
