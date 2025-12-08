@@ -29,6 +29,14 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(Long shopId);
 
     /**
+     * Find top 10 recent visible reviews for a shop
+     * 
+     * @param shopId Shop ID
+     * @return List of top 10 reviews
+     */
+    List<Review> findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(Long shopId);
+
+    /**
      * Find reviews by a specific user
      * 
      * @param userId User ID

@@ -75,21 +75,24 @@ public class ShopController {
                         @Parameter(description = "Shop ID") @PathVariable Long id,
                         HttpServletRequest request) {
 
-                Optional<Shop> shopOpt = shopService.getShopById(id);
+                Optional<ShopDetailDTO> shopDetailOpt = shopService.getShopDetailsById(id);
 
-                if (shopOpt.isEmpty()) {
-                        return ResponseEntity.ok(ApiResponse.error("Shop not found"));
+                if (shopDetailOpt.isEmpty()) {
+                        return ResponseEntity.status(404).body(ApiResponse.error("Shop not found"));
                 }
 
-                ShopDetailDTO shopDTO = shopService.convertToDetailDTO(shopOpt.get());
+                ShopDetailDTO shop = shopDetailOpt.get();
 
                 // Log activity
                 userActivityService.logActivity(
                                 ActivityType.VIEW_SHOP,
-                                null, id, shopDTO.getName(), null, null,
-                                null, request);
+                                String.valueOf(id),
+                                shop.getId(),
+                                shop.getName(),
+                                null, null,
+                                "source=id", request);
 
-                return ResponseEntity.ok(ApiResponse.success("Shop details retrieved successfully", shopDTO));
+                return ResponseEntity.ok(ApiResponse.success("Shop details found", shop));
         }
 
         /**
@@ -99,24 +102,25 @@ public class ShopController {
         @RateLimit(tier = Tier.IO_INTENSIVE)
         @Operation(summary = "Get shop by slug", description = "Get shop details using URL-friendly slug")
         public ResponseEntity<ApiResponse<ShopDetailDTO>> getShopBySlug(
-                        @Parameter(description = "Shop slug") @PathVariable String slug,
+                        @Parameter(description = "Shop Slug") @PathVariable String slug,
                         HttpServletRequest request) {
 
-                Shop shop = shopService.getShopBySlug(slug);
+                ShopDetailDTO shop = shopService.getShopDetailsBySlug(slug);
 
                 if (shop == null) {
-                        return ResponseEntity.ok(ApiResponse.error("Shop not found"));
+                        return ResponseEntity.status(404).body(ApiResponse.error("Shop not found"));
                 }
-
-                ShopDetailDTO shopDTO = shopService.convertToDetailDTO(shop);
 
                 // Log activity
                 userActivityService.logActivity(
                                 ActivityType.VIEW_SHOP,
-                                null, shopDTO.getId(), shopDTO.getName(), null, null,
-                                "slug=" + slug, request);
+                                slug,
+                                shop.getId(),
+                                shop.getName(),
+                                null, null,
+                                "source=slug", request);
 
-                return ResponseEntity.ok(ApiResponse.success("Shop details retrieved successfully", shopDTO));
+                return ResponseEntity.ok(ApiResponse.success("Shop details found", shop));
         }
 
         /**

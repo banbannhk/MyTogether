@@ -26,6 +26,9 @@ public class ShopService {
     @Autowired
     private ShopRepository shopRepository;
 
+    @Autowired
+    private org.th.repository.ReviewRepository reviewRepository;
+
     private static final Double DEFAULT_RADIUS_KM = 5.0;
     private static final Double MAX_RADIUS_KM = 50.0;
 
@@ -49,7 +52,7 @@ public class ShopService {
      * @param userLatitude  User's current latitude
      * @param userLongitude User's current longitude
      * @param radiusInKm    Search radius in kilometers (default: 5km, max: 50km)
-     * @return List of nearby shops sorted by distance
+     * @return List of shops with photos fully loaded
      */
     public List<Shop> getNearbyShops(Double userLatitude, Double userLongitude, Double radiusInKm) {
         logger.info("Searching for shops near [{}, {}] within {} km", userLatitude, userLongitude, radiusInKm);
@@ -150,7 +153,6 @@ public class ShopService {
      * @return Shop entity
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "shopDetails", key = "#shopId")
     public Optional<Shop> getShopById(Long shopId) {
         // Use optimized queries to fetch details separately (to avoid
         // MultipleBagFetchException)
@@ -174,12 +176,40 @@ public class ShopService {
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size(); // Initialize photos
             }
-            if (shop.getReviews() != null) {
-                shop.getReviews().size(); // Initialize reviews
+            if (shop.getPhotos() != null) {
+                shop.getPhotos().size(); // Initialize photos
             }
+            // Reviews are NOT initialized here anymore to prevent performance issues
+            // Use getShopDetailsById() for full details or fetch reviews separately
         });
 
         return shopOpt;
+    }
+
+    /**
+     * Get shop details (DTO) by ID
+     * Optimized: Fetches only Top 10 reviews and caches the DTO
+     * 
+     * @param shopId Shop ID
+     * @return ShopDetailDTO or empty
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "shopDetails", key = "#shopId")
+    public Optional<org.th.dto.ShopDetailDTO> getShopDetailsById(Long shopId) {
+        Optional<Shop> shopOpt = getShopById(shopId);
+
+        if (shopOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Shop shop = shopOpt.get();
+
+        // Fetch only top 10 visible reviews
+        List<org.th.entity.shops.Review> topReviews = reviewRepository
+                .findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(shopId);
+
+        // Convert to DTO using optimized review list
+        return Optional.of(convertToDetailDTO(shop, topReviews));
     }
 
     /**
@@ -188,7 +218,7 @@ public class ShopService {
      * @param slug Shop slug (URL-friendly name)
      * @return Shop entity
      */
-    @Cacheable(value = "shopDetails", key = "#slug")
+    // removed @Cacheable - we cache the DTO instead in getShopDetailsBySlug
     public Shop getShopBySlug(String slug) {
         logger.info("Fetching shop with slug: {}", slug);
         Shop shop = shopRepository.findBySlug(slug);
@@ -208,11 +238,36 @@ public class ShopService {
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size();
             }
-            if (shop.getReviews() != null) {
-                shop.getReviews().size();
+            if (shop.getPhotos() != null) {
+                shop.getPhotos().size();
             }
+            // Reviews are NOT initialized here
         }
         return shop;
+    }
+
+    /**
+     * Get shop details (DTO) by Slug
+     * Optimized: Fetches only Top 10 reviews and caches the DTO
+     * 
+     * @param slug Shop slug
+     * @return ShopDetailDTO or null
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "shopDetails", key = "#slug")
+    public org.th.dto.ShopDetailDTO getShopDetailsBySlug(String slug) {
+        Shop shop = getShopBySlug(slug);
+
+        if (shop == null) {
+            return null;
+        }
+
+        // Fetch only top 10 visible reviews
+        List<org.th.entity.shops.Review> topReviews = reviewRepository
+                .findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(shop.getId());
+
+        // Convert to DTO using optimized review list
+        return convertToDetailDTO(shop, topReviews);
     }
 
     /**
@@ -482,10 +537,15 @@ public class ShopService {
     /**
      * Convert Shop entity to ShopDetailDTO (complete view with relationships)
      * 
-     * @param shop Shop entity
+     * 
+     * /**
+     * Convert Shop entity to ShopDetailDTO with specific reviews
+     * 
+     * @param shop       Shop entity
+     * @param topReviews List of reviews to include
      * @return ShopDetailDTO
      */
-    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop) {
+    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop, List<org.th.entity.shops.Review> topReviews) {
         if (shop == null) {
             return null;
         }
@@ -538,11 +598,8 @@ public class ShopService {
                 })
                 .collect(Collectors.toList());
 
-        // Convert recent reviews (limit to 10 most recent)
-        List<org.th.dto.ReviewSummaryDTO> reviewDTOs = shop.getReviews().stream()
-                .filter(review -> review.getIsVisible() != null && review.getIsVisible())
-                .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
-                .limit(10)
+        // Convert provided reviews (already sorted/limited)
+        List<org.th.dto.ReviewSummaryDTO> reviewDTOs = topReviews.stream()
                 .map(review -> org.th.dto.ReviewSummaryDTO.builder()
                         .id(review.getId())
                         .rating(review.getRating())
@@ -606,5 +663,39 @@ public class ShopService {
                 .createdAt(shop.getCreatedAt())
                 .updatedAt(shop.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * Legacy converter that fetches reviews from entity (Avoid using if possible)
+     */
+    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop) {
+        if (shop == null)
+            return null;
+
+        // Check if reviews are initialized, if not return empty list or fail
+        // For safety in legacy calls, we might want to return empty if not initialized
+        // But for now, we'll try to use the getter which might throw LazyInit if not
+        // careful
+        // Better: Fetch top 10 using repository if we can, but we don't have ID easily
+        // visible here without side effects
+        // So we will just filter the list assuming it's loaded, OR handle the
+        // exception?
+        // Actually, let's just use the strict limited list from the entity
+
+        List<org.th.entity.shops.Review> reviews = java.util.Collections.emptyList();
+        try {
+            if (shop.getReviews() != null) {
+                reviews = shop.getReviews().stream()
+                        .filter(r -> r.getIsVisible() != null && r.getIsVisible())
+                        .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
+                        .limit(10)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            // LazyInit or similar
+            logger.warn("Could not load reviews for convertToDetailDTO: {}", e.getMessage());
+        }
+
+        return convertToDetailDTO(shop, reviews);
     }
 }
