@@ -34,7 +34,13 @@ public class UserController {
         dto.setIsVegetarian(user.getIsVegetarian());
         dto.setIsHalal(user.getIsHalal());
         dto.setPricePreference(user.getPricePreference());
+        if (user.getPricePreference() != null) {
+            dto.setPricePreferenceMm(user.getPricePreference().getLabelMm());
+        }
         dto.setSpicinessPreference(user.getSpicinessPreference());
+        if (user.getSpicinessPreference() != null) {
+            dto.setSpicinessPreferenceMm(user.getSpicinessPreference().getLabelMm());
+        }
 
         return ResponseEntity.ok(ApiResponse.success("Profile retrieved", dto));
     }

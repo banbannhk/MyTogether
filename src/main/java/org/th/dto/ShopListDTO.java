@@ -47,6 +47,12 @@ public class ShopListDTO {
 
     private Boolean isVerified;
 
+    // Personalization
+    private Boolean isHalal;
+    private Boolean isVegetarian;
+    private org.th.entity.enums.PricePreference pricePreference;
+    private String pricePreferenceMm;
+
     // Distance from user location (only populated for nearby searches)
     private Double distance;
 }

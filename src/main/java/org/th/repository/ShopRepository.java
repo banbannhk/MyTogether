@@ -320,4 +320,20 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
          */
         @Query("SELECT DISTINCT s FROM Shop s LEFT JOIN FETCH s.photos WHERE s.id IN :ids")
         List<Shop> findByIdInWithPhotos(@Param("ids") List<Long> ids);
+
+        /**
+         * Fuzzy search for shops using pg_trgm similarity (Shop Name Only)
+         * Requires pg_trgm extension: CREATE EXTENSION IF NOT EXISTS pg_trgm;
+         */
+        @Query(value = "SELECT * FROM shops s " +
+                        "WHERE is_active = true AND (" +
+                        "SIMILARITY(s.name, :keyword) > 0.2 OR " +
+                        "SIMILARITY(s.name_mm, :keyword) > 0.2 OR " +
+                        "SIMILARITY(s.name_en, :keyword) > 0.2) " +
+                        "ORDER BY GREATEST(" +
+                        "SIMILARITY(s.name, :keyword), " +
+                        "SIMILARITY(s.name_mm, :keyword), " +
+                        "SIMILARITY(s.name_en, :keyword)) DESC " +
+                        "LIMIT 10", nativeQuery = true)
+        List<Shop> findShopsFuzzy(@Param("keyword") String keyword);
 }

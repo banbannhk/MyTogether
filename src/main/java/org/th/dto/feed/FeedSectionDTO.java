@@ -17,6 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 public class FeedSectionDTO {
     private String title;
+    private String titleMm;
     private String description;
     private FeedSectionType sectionType;
     private List<ShopFeedItemDTO> shops;

@@ -475,7 +475,26 @@ public class ShopService {
      */
     public List<Shop> searchShops(String keyword) {
         logger.info("Searching shops with keyword: {}", keyword);
+        // 1. Standard Search (Exact/Like)
         List<Shop> results = shopRepository.searchShops(keyword);
+
+        // 2. Fuzzy Fallback (if few results)
+        if (results.size() < 3) {
+            logger.info("Few results found ({}). Attempting fuzzy search for: {}", results.size(), keyword);
+            try {
+                List<Shop> fuzzyResults = shopRepository.findShopsFuzzy(keyword);
+
+                // Merge results (avoiding duplicates)
+                for (Shop s : fuzzyResults) {
+                    if (results.stream().noneMatch(r -> r.getId().equals(s.getId()))) {
+                        results.add(s);
+                    }
+                }
+            } catch (Exception e) {
+                // Graceful fallback if pg_trgm is not enabled or other DB error
+                logger.warn("Fuzzy search failed (likely missing pg_trgm extension): {}", e.getMessage());
+            }
+        }
 
         List<Shop> initializedResults = fetchWithPhotos(results);
 
@@ -556,6 +575,10 @@ public class ShopService {
                 .hasParking(shop.getHasParking())
                 .hasWifi(shop.getHasWifi())
                 .isVerified(shop.getIsVerified())
+                .isHalal(shop.getIsHalal())
+                .isVegetarian(shop.getIsVegetarian())
+                .pricePreference(shop.getPricePreference())
+                .pricePreferenceMm(shop.getPricePreference() != null ? shop.getPricePreference().getLabelMm() : null)
                 .build();
     }
 
@@ -684,6 +707,10 @@ public class ShopService {
                 .viewCount(shop.getViewCount())
                 .isActive(shop.getIsActive())
                 .isVerified(shop.getIsVerified())
+                .isHalal(shop.getIsHalal())
+                .isVegetarian(shop.getIsVegetarian())
+                .pricePreference(shop.getPricePreference())
+                .pricePreferenceMm(shop.getPricePreference() != null ? shop.getPricePreference().getLabelMm() : null)
                 .primaryPhotoUrl(shop.getPhotos().stream()
                         .filter(photo -> photo.getIsPrimary() != null && photo.getIsPrimary())
                         .findFirst()

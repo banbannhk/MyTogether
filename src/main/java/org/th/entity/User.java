@@ -9,6 +9,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.th.entity.enums.Role;
+import org.th.entity.enums.PricePreference;
+import org.th.entity.enums.SpicinessPreference;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -64,14 +66,6 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(name = "spiciness_preference")
     private SpicinessPreference spicinessPreference;
-
-    public enum PricePreference {
-        LOW, MEDIUM, HIGH
-    }
-
-    public enum SpicinessPreference {
-        MILD, MEDIUM, SPICY
-    }
 
     @PrePersist
     protected void onCreate() {

@@ -143,6 +143,17 @@ public class Shop {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Personalization Fields
+    @Column(name = "is_halal")
+    private Boolean isHalal = false;
+
+    @Column(name = "is_vegetarian")
+    private Boolean isVegetarian = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_preference")
+    private org.th.entity.enums.PricePreference pricePreference;
+
     // ========== ADD THIS RELATIONSHIP ==========
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")

@@ -1,8 +1,6 @@
 package org.th.dto;
 
 import lombok.Data;
-import org.th.entity.User.PricePreference;
-import org.th.entity.User.SpicinessPreference;
 
 @Data
 public class UserProfileDTO {
@@ -10,6 +8,8 @@ public class UserProfileDTO {
     private String email;
     private Boolean isVegetarian;
     private Boolean isHalal;
-    private PricePreference pricePreference;
-    private SpicinessPreference spicinessPreference;
+    private org.th.entity.enums.PricePreference pricePreference;
+    private String pricePreferenceMm;
+    private org.th.entity.enums.SpicinessPreference spicinessPreference;
+    private String spicinessPreferenceMm;
 }

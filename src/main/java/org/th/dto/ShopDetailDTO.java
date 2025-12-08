@@ -57,6 +57,12 @@ public class ShopDetailDTO {
     private Boolean isActive;
     private Boolean isVerified;
 
+    // Personalization
+    private Boolean isHalal;
+    private Boolean isVegetarian;
+    private org.th.entity.enums.PricePreference pricePreference;
+    private String pricePreferenceMm;
+
     private String primaryPhotoUrl;
     private List<ShopPhotoDTO> photos;
     private List<MenuCategoryDTO> menuCategories;

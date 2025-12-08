@@ -107,11 +107,13 @@ public class PersonalizedFeedService {
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
                 .map(shop -> convertToFeedItem(shop, latitude, longitude,
-                        "Perfect for " + timeContext.name().toLowerCase()))
+                        "Perfect for " + timeContext.name().toLowerCase(),
+                        timeContext.getLabelMm() + " အတွက် အထူးသင့်တော်သည်"))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
                 .title("For You Now")
+                .titleMm("သင့်အတွက် ယခုအချိန်က")
                 .description(timeContextService.getTimeContextDescription(timeContext))
                 .sectionType(FeedSectionType.FOR_YOU)
                 .shops(feedItems)
@@ -133,11 +135,13 @@ public class PersonalizedFeedService {
         }
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
-                .map(shop -> convertToFeedItem(shop, latitude, longitude, "Trending in your area"))
+                .map(shop -> convertToFeedItem(shop, latitude, longitude, "Trending in your area",
+                        "သင့်ဒေသတွင် ရေပန်းစားနေသည်"))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
                 .title("Trending Nearby")
+                .titleMm("အနီးနားရှိ ရေပန်းစားနေသော")
                 .description(hasLocation ? "Popular spots near you" : "Trending shops")
                 .sectionType(FeedSectionType.TRENDING_NEARBY)
                 .shops(feedItems)
@@ -179,11 +183,13 @@ public class PersonalizedFeedService {
         }
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
-                .map(shop -> convertToFeedItem(shop, null, null, "Similar to your favorites"))
+                .map(shop -> convertToFeedItem(shop, null, null, "Similar to your favorites",
+                        "သင့်ကြိုက်နှစ်သက်မှုများနှင့် ဆင်တူသည်"))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
                 .title("Based on Your Favorites")
+                .titleMm("သင့်အကြိုက်များအပေါ် အခြေခံထားသော")
                 .description(preferredCategories.isEmpty() ? "Discover new places" : "More places you might like")
                 .sectionType(FeedSectionType.BASED_ON_FAVORITES)
                 .shops(feedItems)
@@ -219,11 +225,13 @@ public class PersonalizedFeedService {
         }
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
-                .map(shop -> convertToFeedItem(shop, latitude, longitude, "Recently added"))
+                .map(shop -> convertToFeedItem(shop, latitude, longitude, "Recently added",
+                        "မကြာသေးမီက ထည့်သွင်းထားသည်"))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
                 .title("New Shops")
+                .titleMm("ဆိုင်အသစ်များ")
                 .description("Recently added places")
                 .sectionType(FeedSectionType.NEW_SHOPS)
                 .shops(feedItems)
@@ -234,8 +242,10 @@ public class PersonalizedFeedService {
     /**
      * Convert Shop entity to ShopFeedItemDTO with badges and relevance
      */
-    private ShopFeedItemDTO convertToFeedItem(Shop shop, Double userLat, Double userLon, String matchReason) {
+    private ShopFeedItemDTO convertToFeedItem(Shop shop, Double userLat, Double userLon, String matchReason,
+            String matchReasonMm) {
         List<ShopBadge> badges = calculateShopBadges(shop);
+        List<String> badgeLabelsMm = badges.stream().map(ShopBadge::getLabelMm).collect(Collectors.toList());
         Double distance = null;
 
         if (userLat != null && userLon != null) {
@@ -259,8 +269,10 @@ public class PersonalizedFeedService {
                 .longitude(shop.getLongitude())
                 .distanceKm(distance)
                 .badges(badges)
+                .badgeLabelsMm(badgeLabelsMm)
                 .relevanceScore(calculateRelevanceScore(shop))
                 .matchReason(matchReason)
+                .matchReasonMm(matchReasonMm)
                 .hasDelivery(shop.getHasDelivery())
                 .hasParking(shop.getHasParking())
                 .hasWifi(shop.getHasWifi())

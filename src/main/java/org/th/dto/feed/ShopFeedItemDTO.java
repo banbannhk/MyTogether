@@ -34,8 +34,10 @@ public class ShopFeedItemDTO {
 
     // Feed-specific fields
     private List<ShopBadge> badges;
+    private List<String> badgeLabelsMm;
     private Double relevanceScore; // Why this shop was recommended (0-100)
     private String matchReason; // Human-readable explanation
+    private String matchReasonMm; // Myanmar translation
 
     // Features
     private Boolean hasDelivery;
