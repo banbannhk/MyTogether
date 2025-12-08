@@ -37,42 +37,47 @@ public class TrendingService {
          * Calculate trending scores for all shops
          * Runs every hour
          */
+        /**
+         * Calculate trending scores for all shops
+         * Optimized: Uses aggregate queries to avoid N+5 problem
+         * Runs every hour
+         */
         @Scheduled(fixedRate = 3600000) // 1 hour in milliseconds
         @Transactional
         @org.springframework.cache.annotation.CacheEvict(value = "trendingShops", allEntries = true)
         public void updateTrendingScores() {
-                logger.info("Starting trending score calculation...");
+                logger.info("Starting optimized trending score calculation...");
+                long start = System.currentTimeMillis();
 
                 List<Shop> allShops = shopRepository.findAll();
                 LocalDateTime now = LocalDateTime.now();
                 LocalDateTime oneDayAgo = now.minusDays(1);
                 LocalDateTime sevenDaysAgo = now.minusDays(7);
 
+                // 1. Bulk Fetch Stats (Maps of ShopId -> Count)
+                java.util.Map<Long, Long> viewsMap = getCountMap(
+                                userActivityRepository.countActivityByTargetIdSince(ActivityType.VIEW_SHOP, oneDayAgo));
+
+                java.util.Map<Long, Long> favoritesMap = getCountMap(
+                                favoriteRepository.countFavoritesByShopSince(sevenDaysAgo));
+
+                java.util.Map<Long, Long> reviewsMap = getCountMap(
+                                reviewRepository.countReviewsByShopSince(sevenDaysAgo));
+
+                // Conversions: Directions, Calls, Shares
+                java.util.Map<Long, Long> conversionsMap = getCountMap(
+                                userActivityRepository.countActivitiesByTargetIdSince(
+                                                List.of(ActivityType.CLICK_DIRECTIONS, ActivityType.CLICK_CALL,
+                                                                ActivityType.CLICK_SHARE),
+                                                sevenDaysAgo));
+
+                // 2. Calculate Scores in Memory
                 for (Shop shop : allShops) {
                         try {
-                                // 1. Recent Views (Last 24h)
-                                long views = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                                                shop.getId(), ActivityType.VIEW_SHOP, oneDayAgo);
-
-                                // 2. Recent Favorites (Last 7d)
-                                long favorites = favoriteRepository.countByShopIdAndCreatedAtAfter(
-                                                shop.getId(), sevenDaysAgo);
-
-                                // 3. Recent Reviews (Last 7d)
-                                long reviews = reviewRepository.countByShopIdAndCreatedAtAfter(
-                                                shop.getId(), sevenDaysAgo);
-
-                                // 4. Conversion Events (Last 7d) - High Intent
-                                long directions = userActivityRepository
-                                                .countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                                                                shop.getId(), ActivityType.CLICK_DIRECTIONS,
-                                                                sevenDaysAgo);
-                                long calls = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                                                shop.getId(), ActivityType.CLICK_CALL, sevenDaysAgo);
-                                long shares = userActivityRepository.countByTargetIdAndActivityTypeAndCreatedAtAfter(
-                                                shop.getId(), ActivityType.CLICK_SHARE, sevenDaysAgo);
-
-                                long conversions = directions + calls + shares;
+                                long views = viewsMap.getOrDefault(shop.getId(), 0L);
+                                long favorites = favoritesMap.getOrDefault(shop.getId(), 0L);
+                                long reviews = reviewsMap.getOrDefault(shop.getId(), 0L);
+                                long conversions = conversionsMap.getOrDefault(shop.getId(), 0L);
 
                                 // Calculate Score
                                 double score = (views * VIEW_WEIGHT) +
@@ -87,8 +92,26 @@ public class TrendingService {
                         }
                 }
 
+                // 3. Batch Update
                 shopRepository.saveAll(allShops);
-                logger.info("Trending score calculation completed for {} shops.", allShops.size());
+
+                long duration = System.currentTimeMillis() - start;
+                logger.info("Trending score calculation completed for {} shops in {} ms.", allShops.size(), duration);
+        }
+
+        /**
+         * Helper to convert List<Object[]> to Map<Long, Long>
+         */
+        private java.util.Map<Long, Long> getCountMap(List<Object[]> results) {
+                java.util.Map<Long, Long> map = new java.util.HashMap<>();
+                for (Object[] row : results) {
+                        if (row[0] != null && row[1] != null) {
+                                Long id = (Long) row[0];
+                                Long count = ((Number) row[1]).longValue();
+                                map.put(id, count);
+                        }
+                }
+                return map;
         }
 
         /**

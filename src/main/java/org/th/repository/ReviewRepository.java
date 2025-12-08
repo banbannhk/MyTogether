@@ -82,4 +82,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * @return Number of reviews
      */
     long countByUserId(Long userId);
+
+    /**
+     * Bulk count reviews by Shop ID since a date
+     */
+    @Query("SELECT r.shop.id, COUNT(r) FROM Review r " +
+            "WHERE r.createdAt >= :since " +
+            "GROUP BY r.shop.id")
+    List<Object[]> countReviewsByShopSince(@Param("since") LocalDateTime since);
 }

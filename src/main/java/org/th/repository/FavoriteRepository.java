@@ -81,4 +81,12 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
      */
     @Query("SELECT f FROM Favorite f JOIN FETCH f.shop s LEFT JOIN FETCH s.photos WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
     List<Favorite> findByUserIdWithShopAndPhotos(@Param("userId") Long userId);
+
+    /**
+     * Bulk count favorites by Shop ID since a date
+     */
+    @Query("SELECT f.shop.id, COUNT(f) FROM Favorite f " +
+            "WHERE f.createdAt >= :since " +
+            "GROUP BY f.shop.id")
+    List<Object[]> countFavoritesByShopSince(@Param("since") LocalDateTime since);
 }

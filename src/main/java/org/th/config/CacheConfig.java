@@ -52,7 +52,10 @@ public class CacheConfig {
                 buildCache("timeContext", 10, 15, TimeUnit.MINUTES),
 
                 // User segments - cache for 1 hour
-                buildCache("userSegment", 1000, 1, TimeUnit.HOURS)));
+                buildCache("userSegment", 1000, 1, TimeUnit.HOURS),
+
+                // Shop Menu - cache for 30 minutes (rarely changes)
+                buildCache("shopMenu", 500, 30, TimeUnit.MINUTES)));
 
         return cacheManager;
     }

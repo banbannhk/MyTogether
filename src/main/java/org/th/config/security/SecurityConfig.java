@@ -44,11 +44,12 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/shops/**", // ✅ Public shop browsing
-                                "/api/hello",
-                                "/api/health",
-                                "/swagger-ui/**",
+                                "/api/reviews/**", // Reviews are public to read
+                                "/api/system/**", // System diagnostics
                                 "/swagger-ui.html",
+                                "/swagger-ui/**",
                                 "/v3/api-docs/**",
+                                "/actuator/**", // Health checks
                                 "/v3/api-docs",
                                 "/api-docs/**",
                                 "/api-docs/swagger-config",

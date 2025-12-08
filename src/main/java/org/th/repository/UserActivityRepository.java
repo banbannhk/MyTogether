@@ -140,4 +140,26 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Long
         void deleteByActivityTypeInAndCreatedAtBefore(List<ActivityType> types, LocalDateTime cutoff);
 
         void deleteByUserIdIsNullAndCreatedAtBefore(LocalDateTime cutoff);
+
+        /**
+         * Bulk count activities by target ID (Shop ID) since a date
+         * Used for Trending Score calculation
+         */
+        @Query("SELECT a.targetId, COUNT(a) FROM UserActivity a " +
+                        "WHERE a.activityType = :type AND a.createdAt >= :since " +
+                        "GROUP BY a.targetId")
+        List<Object[]> countActivityByTargetIdSince(
+                        @Param("type") ActivityType type,
+                        @Param("since") LocalDateTime since);
+
+        /**
+         * Bulk count multiple activity types by target ID since a date
+         * Used for Conversion metrics (Directions, Calls, Shares)
+         */
+        @Query("SELECT a.targetId, COUNT(a) FROM UserActivity a " +
+                        "WHERE a.activityType IN :types AND a.createdAt >= :since " +
+                        "GROUP BY a.targetId")
+        List<Object[]> countActivitiesByTargetIdSince(
+                        @Param("types") List<ActivityType> types,
+                        @Param("since") LocalDateTime since);
 }
