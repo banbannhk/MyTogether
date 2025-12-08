@@ -7,14 +7,15 @@ import org.springframework.stereotype.Service;
 import org.th.entity.shops.Shop;
 import org.th.repository.ShopRepository;
 
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Slice;
 
 @Service
 public class ShopService {
@@ -153,12 +154,14 @@ public class ShopService {
     }
 
     /**
-     * Get all shops with pagination (Optimized with Slice + DTO Projection)
+     * Get all shops with pagination (Optimized with Slice + DTO Projection +
+     * Caching)
      * 
      * @param pageable Pagination information
      * @return Slice of ShopListDTO (no total count)
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "homeShops", key = "#pageable.pageNumber", condition = "#pageable.pageNumber == 0")
     public Slice<org.th.dto.ShopListDTO> getAllShops(Pageable pageable) {
         logger.info("Fetching all shops slice: {}", pageable.getPageNumber());
 
@@ -246,6 +249,7 @@ public class ShopService {
      * @param shop Shop entity to save
      * @return Saved shop entity
      */
+    @CacheEvict(value = "homeShops", allEntries = true)
     public Shop saveShop(Shop shop) {
         logger.info("Saving shop: {}", shop.getName());
         return shopRepository.save(shop);
@@ -256,6 +260,7 @@ public class ShopService {
      * 
      * @param shopId Shop ID to delete
      */
+    @CacheEvict(value = "homeShops", allEntries = true)
     public void deleteShop(Long shopId) {
         logger.info("Deleting shop with ID: {}", shopId);
         shopRepository.deleteById(shopId);

@@ -39,6 +39,9 @@ public class CacheConfig {
                 // Trending shops - cache for 5 minutes (frequently accessed)
                 buildCache("trendingShops", 100, 5, TimeUnit.MINUTES),
 
+                // Home Feed (Page 0) - cache for 2 minutes (bypass network latency)
+                buildCache("homeShops", 10, 2, TimeUnit.MINUTES),
+
                 // Shops by category - cache for 15 minutes
                 buildCache("shopsByCategory", 500, 15, TimeUnit.MINUTES),
 
