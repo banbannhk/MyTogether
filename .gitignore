@@ -34,5 +34,12 @@ build/
 ### VS Code ###
 .vscode/
 
+
 ### Mac OS ###
-.DS_Storeserver.log
+.DS_Store
+
+### Logs ###
+*.log
+app.log
+hs_err_pid*
+
