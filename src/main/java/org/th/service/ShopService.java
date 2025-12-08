@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.th.entity.shops.Shop;
 import org.th.repository.ShopRepository;
 
+import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
@@ -126,6 +127,7 @@ public class ShopService {
      * @return Shop entity
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "shopDetails", key = "#shopId")
     public Optional<Shop> getShopById(Long shopId) {
         // Use optimized queries to fetch details separately (to avoid
         // MultipleBagFetchException)
@@ -148,6 +150,7 @@ public class ShopService {
      * @param slug Shop slug (URL-friendly name)
      * @return Shop entity
      */
+    @Cacheable(value = "shopDetails", key = "#slug")
     public Shop getShopBySlug(String slug) {
         logger.info("Fetching shop with slug: {}", slug);
         return shopRepository.findBySlug(slug);
@@ -249,7 +252,11 @@ public class ShopService {
      * @param shop Shop entity to save
      * @return Saved shop entity
      */
-    @CacheEvict(value = "homeShops", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "homeShops", allEntries = true),
+            @CacheEvict(value = "shopDetails", key = "#shop.id"),
+            @CacheEvict(value = "shopDetails", key = "#shop.slug")
+    })
     public Shop saveShop(Shop shop) {
         logger.info("Saving shop: {}", shop.getName());
         return shopRepository.save(shop);
@@ -260,7 +267,10 @@ public class ShopService {
      * 
      * @param shopId Shop ID to delete
      */
-    @CacheEvict(value = "homeShops", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "homeShops", allEntries = true),
+            @CacheEvict(value = "shopDetails", allEntries = true)
+    })
     public void deleteShop(Long shopId) {
         logger.info("Deleting shop with ID: {}", shopId);
         shopRepository.deleteById(shopId);

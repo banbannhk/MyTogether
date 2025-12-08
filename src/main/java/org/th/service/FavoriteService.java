@@ -31,7 +31,8 @@ public class FavoriteService {
     public List<ShopListDTO> getUserFavorites(User user) {
         logger.info("Fetching favorites for user: {}", user.getUsername());
 
-        List<Favorite> favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        // Use optimized query to fetch Favorites + Shop + Photos in one go
+        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
 
         return favorites.stream()
                 .map(favorite -> shopService.convertToListDTO(favorite.getShop()))

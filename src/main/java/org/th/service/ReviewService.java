@@ -14,6 +14,10 @@ import org.th.entity.shops.Shop;
 import org.th.repository.ReviewRepository;
 import org.th.repository.ShopRepository;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -32,6 +36,7 @@ public class ReviewService {
     /**
      * Get all reviews for a shop
      */
+    @Cacheable(value = "shopReviews", key = "#shopId + '-' + #onlyVisible")
     public List<ReviewSummaryDTO> getShopReviews(Long shopId, boolean onlyVisible) {
         logger.info("Fetching reviews for shop ID: {}", shopId);
 
@@ -136,6 +141,7 @@ public class ReviewService {
      * Add owner response to review
      */
     @Transactional
+    @CacheEvict(value = "shopReviews", allEntries = true)
     public ReviewSummaryDTO addOwnerResponse(Long reviewId, OwnerResponseRequest request) {
         logger.info("Adding owner response to review ID: {}", reviewId);
 
@@ -154,6 +160,7 @@ public class ReviewService {
      * Mark review as helpful
      */
     @Transactional
+    @CacheEvict(value = "shopReviews", allEntries = true)
     public void markHelpful(Long reviewId) {
         logger.info("Marking review ID: {} as helpful", reviewId);
 
@@ -179,6 +186,11 @@ public class ReviewService {
     /**
      * Update shop rating based on reviews
      */
+    @Caching(evict = {
+            @CacheEvict(value = "shopDetails", key = "#shopId"),
+            @CacheEvict(value = "homeShops", allEntries = true),
+            @CacheEvict(value = "shopReviews", allEntries = true)
+    })
     private void updateShopRating(Long shopId) {
         Double avgRating = reviewRepository.calculateAverageRating(shopId);
         long count = reviewRepository.countByShopId(shopId);

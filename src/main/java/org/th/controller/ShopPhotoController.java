@@ -17,6 +17,7 @@ import org.th.exception.ResourceNotFoundException;
 import org.th.exception.SupabaseStorageException;
 import org.th.repository.ShopRepository;
 import org.th.service.SupabaseStorageService;
+import org.th.service.ShopService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,6 +38,9 @@ public class ShopPhotoController {
     @Autowired
     private ShopRepository shopRepository;
 
+    @Autowired
+    private ShopService shopService;
+
     /**
      * Upload a photo for a shop
      */
@@ -50,7 +54,7 @@ public class ShopPhotoController {
             @RequestParam(value = "caption", required = false) String caption) {
         try {
             // Find the shop
-            Shop shop = shopRepository.findById(shopId)
+            Shop shop = shopService.getShopById(shopId)
                     .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + shopId));
 
             // Upload to Supabase Storage

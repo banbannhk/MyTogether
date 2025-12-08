@@ -150,7 +150,7 @@ public class PersonalizedFeedService {
      */
     private FeedSectionDTO buildBasedOnFavoritesSection(User user) {
         // Use JOIN FETCH to avoid N+1 query
-        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopOrderByCreatedAtDesc(user.getId());
+        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
 
         // Extract preferred categories
         Set<String> preferredCategories = favorites.stream()
@@ -200,7 +200,7 @@ public class PersonalizedFeedService {
 
         // Get user's preferred categories
         // Use JOIN FETCH to avoid N+1 query
-        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopOrderByCreatedAtDesc(user.getId());
+        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
         Set<String> preferredCategories = favorites.stream()
                 .map(fav -> fav.getShop().getCategory())
                 .collect(Collectors.toSet());

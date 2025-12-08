@@ -79,6 +79,6 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
      * @param userId User ID
      * @return List of user's favorites with shops loaded
      */
-    @Query("SELECT f FROM Favorite f JOIN FETCH f.shop WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
-    List<Favorite> findByUserIdWithShopOrderByCreatedAtDesc(@Param("userId") Long userId);
+    @Query("SELECT f FROM Favorite f JOIN FETCH f.shop s LEFT JOIN FETCH s.photos WHERE f.user.id = :userId ORDER BY f.createdAt DESC")
+    List<Favorite> findByUserIdWithShopAndPhotos(@Param("userId") Long userId);
 }

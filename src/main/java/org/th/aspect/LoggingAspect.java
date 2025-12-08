@@ -70,23 +70,18 @@ public class LoggingAspect {
         // Get parameter names and values
         String paramsInfo = getParametersInfo(joinPoint);
 
-        // Get MDC context for logging
-        String mdcContext = getMDCContext();
-
         // Log method entry with HTTP info and parameters
         if (httpInfo != null) {
-            log.info("Start: {}.{}() {} - Params: {}{}",
+            log.info("Start: {}.{}() {} - Params: {}",
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
                     httpInfo,
-                    paramsInfo,
-                    mdcContext);
+                    paramsInfo);
         } else {
-            log.info("Start: {}.{}() - Params: {}{}",
+            log.info("Start: {}.{}() - Params: {}",
                     joinPoint.getSignature().getDeclaringTypeName(),
                     joinPoint.getSignature().getName(),
-                    paramsInfo,
-                    mdcContext);
+                    paramsInfo);
         }
 
         try {
@@ -99,37 +94,33 @@ public class LoggingAspect {
             String performanceIndicator = "";
             if (executionTime > 1000) {
                 performanceIndicator = " - ⚠️ VERY SLOW - NEEDS OPTIMIZATION";
-                log.warn("Finished: {}.{}() - Execution Time: {} ms ({} s){}{}",
+                log.warn("Finished: {}.{}() - Execution Time: {} ms ({} s){}",
                         joinPoint.getSignature().getDeclaringTypeName(),
                         joinPoint.getSignature().getName(),
                         executionTime,
                         String.format("%.2f", executionTimeSeconds),
-                        performanceIndicator,
-                        mdcContext);
+                        performanceIndicator);
             } else if (executionTime > 300) {
                 performanceIndicator = " - ⚠️ SLOW - Consider optimization";
-                log.info("Finished: {}.{}() - Execution Time: {} ms ({} s){}{}",
-                        joinPoint.getSignature().getDeclaringTypeName(),
-                        joinPoint.getSignature().getName(),
-                        executionTime,
-                        String.format("%.2f", executionTimeSeconds),
-                        performanceIndicator,
-                        mdcContext);
-            } else {
                 log.info("Finished: {}.{}() - Execution Time: {} ms ({} s){}",
                         joinPoint.getSignature().getDeclaringTypeName(),
                         joinPoint.getSignature().getName(),
                         executionTime,
                         String.format("%.2f", executionTimeSeconds),
-                        mdcContext);
+                        performanceIndicator);
+            } else {
+                log.info("Finished: {}.{}() - Execution Time: {} ms ({} s)",
+                        joinPoint.getSignature().getDeclaringTypeName(),
+                        joinPoint.getSignature().getName(),
+                        executionTime,
+                        String.format("%.2f", executionTimeSeconds));
             }
 
             return result;
         } catch (IllegalArgumentException e) {
-            log.error("Illegal argument: {} in {}.{}(){}", getParametersInfo(joinPoint),
+            log.error("Illegal argument: {} in {}.{}()", getParametersInfo(joinPoint),
                     joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName(),
-                    mdcContext);
+                    joinPoint.getSignature().getName());
             throw e;
         }
     }
@@ -183,47 +174,6 @@ public class LoggingAspect {
         }
 
         return paramMap.isEmpty() ? "none" : paramMap.toString();
-    }
-
-    /**
-     * Get MDC context as a formatted string.
-     */
-    private String getMDCContext() {
-        String requestId = org.slf4j.MDC.get("requestId");
-        String userId = org.slf4j.MDC.get("userId");
-        String deviceId = org.slf4j.MDC.get("deviceId");
-        String clientIp = org.slf4j.MDC.get("clientIp");
-        String serverId = org.slf4j.MDC.get("serverId");
-
-        StringBuilder context = new StringBuilder();
-        if (requestId != null || userId != null || deviceId != null || clientIp != null || serverId != null) {
-            context.append(" [");
-            if (requestId != null) {
-                context.append("reqId=").append(requestId.substring(0, Math.min(8, requestId.length())));
-            }
-            if (userId != null) {
-                if (context.length() > 2)
-                    context.append(", ");
-                context.append("user=").append(userId);
-            }
-            if (deviceId != null) {
-                if (context.length() > 2)
-                    context.append(", ");
-                context.append("device=").append(deviceId);
-            }
-            if (clientIp != null) {
-                if (context.length() > 2)
-                    context.append(", ");
-                context.append("ip=").append(clientIp);
-            }
-            if (serverId != null) {
-                if (context.length() > 2)
-                    context.append(", ");
-                context.append("server=").append(serverId);
-            }
-            context.append("]");
-        }
-        return context.toString();
     }
 
     /**
