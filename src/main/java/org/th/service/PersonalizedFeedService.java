@@ -32,21 +32,23 @@ public class PersonalizedFeedService {
     private final FavoriteRepository favoriteRepository;
     private final TimeContextService timeContextService;
     private final UserSegmentationService userSegmentationService;
+    private final UserActivityRepository userActivityRepository;
+    private final RecommendationService recommendationService; // Added dependency
 
     private static final int SECTION_LIMIT = 10;
     private static final double DEFAULT_RADIUS_KM = 5.0;
 
     /**
-     * Generate complete personalized feed for a user
+     * Generate complete personalized feed for a user (or guest with deviceId)
      */
     @Transactional(readOnly = true)
     public PersonalizedFeedDTO generatePersonalizedFeed(String username, Double latitude, Double longitude,
-            Double radiusKm) {
-        logger.info("Generating personalized feed for user: {}", username);
+            Double radiusKm, String deviceId) {
+        logger.info("Generating personalized feed for user: {}, device: {}", username, deviceId);
 
-        User user = userRepository.findByUsername(username).orElse(null);
-        if (user == null) {
-            throw new RuntimeException("User not found: " + username);
+        User user = null;
+        if (username != null && !username.equals("guest")) {
+            user = userRepository.findByUsername(username).orElse(null);
         }
 
         // Use default radius if not provided
@@ -54,14 +56,46 @@ public class PersonalizedFeedService {
         boolean hasLocation = (latitude != null && longitude != null);
 
         // Get user context
-        UserSegment userSegment = userSegmentationService.classifyUser(username);
+        UserSegment userSegment = (user != null) ? userSegmentationService.classifyUser(username) : UserSegment.CASUAL;
         TimeContext timeContext = timeContextService.getCurrentTimeContext();
 
+        // 1. Calculate Preferences (User or Device)
+        Set<String> preferredCategories = new HashSet<>();
+        Set<Long> excludedIds = new HashSet<>();
+
+        if (user != null) {
+            // User-based preferences from Favorites
+            List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
+            preferredCategories = favorites.stream()
+                    .map(fav -> fav.getShop().getCategory())
+                    .collect(Collectors.toSet());
+            excludedIds = favorites.stream()
+                    .map(fav -> fav.getShop().getId())
+                    .collect(Collectors.toSet());
+        } else if (deviceId != null) {
+            // Device-based preferences from Activity History
+            List<Object[]> topCategories = userActivityRepository.findTopCategoriesByDevice(deviceId);
+            preferredCategories = topCategories.stream()
+                    .limit(5)
+                    .map(obj -> (String) obj[0])
+                    .collect(Collectors.toSet());
+        }
+
+        if (excludedIds.isEmpty()) {
+            excludedIds.add(-1L);
+        }
+
         // Build feed sections
-        FeedSectionDTO forYouNow = buildForYouNowSection(user, latitude, longitude, radius, timeContext, hasLocation);
+        FeedSectionDTO forYouNow = buildForYouNowSection(user, latitude, longitude, radius, timeContext, hasLocation); // Keep
+                                                                                                                       // as
+                                                                                                                       // is?
+                                                                                                                       // Or
+                                                                                                                       // optimize?
         FeedSectionDTO trendingNearby = buildTrendingNearbySection(latitude, longitude, radius, hasLocation);
-        FeedSectionDTO basedOnFavorites = buildBasedOnFavoritesSection(user);
-        FeedSectionDTO newShops = buildNewShopsSection(user, latitude, longitude, radius, hasLocation);
+
+        // Pass explicit preferences
+        FeedSectionDTO basedOnFavorites = buildBasedOnHistorySection(user, preferredCategories, excludedIds, deviceId);
+        FeedSectionDTO newShops = buildNewShopsSection(preferredCategories, latitude, longitude, radius, hasLocation);
 
         // Build metadata
         FeedMetadataDTO metadata = FeedMetadataDTO.builder()
@@ -77,7 +111,7 @@ public class PersonalizedFeedService {
         return PersonalizedFeedDTO.builder()
                 .forYouNow(forYouNow)
                 .trendingNearby(trendingNearby)
-                .basedOnFavorites(basedOnFavorites)
+                .basedOnFavorites(basedOnFavorites) // Renamed internally but DTO field same
                 .newShops(newShops)
                 .metadata(metadata)
                 .build();
@@ -150,47 +184,33 @@ public class PersonalizedFeedService {
     }
 
     /**
-     * Build "Based on Favorites" section
+     * Build "Based on Favorites/History" section
+     * Delegates to RecommendationService for unified logic
      */
-    private FeedSectionDTO buildBasedOnFavoritesSection(User user) {
-        // Use JOIN FETCH to avoid N+1 query
-        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
+    private FeedSectionDTO buildBasedOnHistorySection(User user, Set<String> preferredCategories, Set<Long> excludedIds,
+            String deviceId) {
+        // Note: We ignore the passed sets because RecommendationService recalculates
+        // them properly
+        // using the Weighted Scoring algorithm we just implemented.
+        // This ensures "For You" API and "Feed" Dashboard use identical intelligence.
 
-        // Extract preferred categories
-        Set<String> preferredCategories = favorites.stream()
-                .map(fav -> fav.getShop().getCategory())
-                .collect(Collectors.toSet());
+        String username = (user != null) ? user.getUsername() : null;
+        List<Shop> shops = recommendationService.getRecommendedShops(username, deviceId);
 
-        // Get excluded shop IDs (already favorited)
-        Set<Long> excludedIds = favorites.stream()
-                .map(fav -> fav.getShop().getId())
-                .collect(Collectors.toSet());
-
-        if (excludedIds.isEmpty()) {
-            excludedIds.add(-1L); // Dummy ID to avoid empty list
-        }
-
-        List<Shop> shops = new ArrayList<>();
-        if (!preferredCategories.isEmpty()) {
-            shops = shopRepository.findByCategoryInAndIdNotIn(
-                    new ArrayList<>(preferredCategories),
-                    new ArrayList<>(excludedIds)).stream().limit(SECTION_LIMIT).collect(Collectors.toList());
-        }
-
-        // Fallback to trending if no favorites
-        if (shops.isEmpty()) {
-            shops = shopRepository.findTop10ByOrderByTrendingScoreDesc();
-        }
+        String title = (user != null) ? "Based on Your Favorites" : "Based on your History";
+        String titleMm = (user != null) ? "သင့်အကြိုက်များအပေါ် အခြေခံထားသော"
+                : "သင့်ကြည့်ရှုမှုမှတ်တမ်းအပေါ် အခြေခံထားသော";
+        String description = (user != null) ? "More places you might like" : "Based on places you viewed";
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
-                .map(shop -> convertToFeedItem(shop, null, null, "Similar to your favorites",
-                        "သင့်ကြိုက်နှစ်သက်မှုများနှင့် ဆင်တူသည်"))
+                .map(shop -> convertToFeedItem(shop, null, null, "Similar to your interests",
+                        "သင့်စိတ်ဝင်စားမှုများနှင့် ဆင်တူသည်"))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
-                .title("Based on Your Favorites")
-                .titleMm("သင့်အကြိုက်များအပေါ် အခြေခံထားသော")
-                .description(preferredCategories.isEmpty() ? "Discover new places" : "More places you might like")
+                .title(title)
+                .titleMm(titleMm)
+                .description(description)
                 .sectionType(FeedSectionType.BASED_ON_FAVORITES)
                 .shops(feedItems)
                 .totalCount(feedItems.size())
@@ -200,25 +220,17 @@ public class PersonalizedFeedService {
     /**
      * Build "New Shops" section
      */
-    private FeedSectionDTO buildNewShopsSection(User user, Double latitude, Double longitude,
+    private FeedSectionDTO buildNewShopsSection(Set<String> preferredCategories, Double latitude, Double longitude,
             double radius, boolean hasLocation) {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
-
-        // Get user's preferred categories
-        // Use JOIN FETCH to avoid N+1 query
-        List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
-        Set<String> preferredCategories = favorites.stream()
-                .map(fav -> fav.getShop().getCategory())
-                .collect(Collectors.toSet());
-
         List<Shop> shops;
+
         if (!preferredCategories.isEmpty()) {
             shops = shopRepository.findRecentShopsByCategories(
                     new ArrayList<>(preferredCategories),
                     thirtyDaysAgo).stream().limit(SECTION_LIMIT).collect(Collectors.toList());
         } else {
-            // Fallback: all recent shops
-            // Use paginated query instead of loading all shops
+            // Fallback: just show recent shops
             shops = shopRepository.findRecentShops(
                     thirtyDaysAgo,
                     org.springframework.data.domain.PageRequest.of(0, SECTION_LIMIT)).getContent();

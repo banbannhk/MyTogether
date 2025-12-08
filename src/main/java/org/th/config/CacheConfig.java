@@ -55,7 +55,13 @@ public class CacheConfig {
                 buildCache("userSegment", 1000, 1, TimeUnit.HOURS),
 
                 // Shop Menu - cache for 30 minutes (rarely changes)
-                buildCache("shopMenu", 500, 30, TimeUnit.MINUTES)));
+                buildCache("shopMenu", 500, 30, TimeUnit.MINUTES),
+
+                // Categories List - cache for 1 hour
+                buildCache("categories", 100, 1, TimeUnit.HOURS),
+
+                // Recommendations - cache for 5 minutes (per user/device)
+                buildCache("recommendations", 1000, 5, TimeUnit.MINUTES)));
 
         return cacheManager;
     }

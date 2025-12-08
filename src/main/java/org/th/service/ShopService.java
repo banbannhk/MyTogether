@@ -548,11 +548,19 @@ public class ShopService {
         }
 
         // Get primary photo URL
-        String primaryPhotoUrl = shop.getPhotos().stream()
-                .filter(photo -> photo.getIsPrimary() != null && photo.getIsPrimary())
-                .findFirst()
-                .map(org.th.entity.shops.ShopPhoto::getUrl)
-                .orElse(shop.getPhotos().isEmpty() ? null : shop.getPhotos().get(0).getUrl());
+        String primaryPhotoUrl = null;
+        try {
+            if (shop.getPhotos() != null && org.hibernate.Hibernate.isInitialized(shop.getPhotos())) {
+                primaryPhotoUrl = shop.getPhotos().stream()
+                        .filter(photo -> photo.getIsPrimary() != null && photo.getIsPrimary())
+                        .findFirst()
+                        .map(org.th.entity.shops.ShopPhoto::getUrl)
+                        .orElse(shop.getPhotos().isEmpty() ? null : shop.getPhotos().get(0).getUrl());
+            }
+        } catch (Exception e) {
+            // Log warning but proceed (graceful degradation)
+            logger.warn("Could not access photos for shop {}: {}", shop.getId(), e.getMessage());
+        }
 
         return org.th.dto.ShopListDTO.builder()
                 .id(shop.getId())

@@ -22,7 +22,14 @@ import java.time.LocalDateTime;
         @Index(name = "idx_device_created", columnList = "device_id, created_at"),
         @Index(name = "idx_user_created", columnList = "user_id, created_at"),
         @Index(name = "idx_type_created", columnList = "activity_type, created_at"),
-        @Index(name = "idx_search_query", columnList = "search_query")
+        @Index(name = "idx_search_query", columnList = "search_query"),
+
+        // Optimizations for Guest Personalization (V4)
+        @Index(name = "idx_activity_device_type", columnList = "device_id, activity_type"),
+        // Note: Partial index (WHERE search_query IS NOT NULL) not fully supported by
+        // standard JPA @Index
+        // We define the base composite index for consistency
+        @Index(name = "idx_activity_device_search", columnList = "device_id, search_query")
 })
 @Data
 @Builder

@@ -49,3 +49,10 @@ hs_err_pid*
 *.csv
 ~$*
 
+
+### Utility Scripts ###
+health_check_all.sh
+test_recs.sh
+
+### sql ###
+*.sql

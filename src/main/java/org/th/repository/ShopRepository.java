@@ -238,11 +238,11 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
          * Find shops in given categories, excluding specific IDs
          * Used for recommendations
          */
-        @Query("SELECT s FROM Shop s WHERE s.isActive = true " +
+        @Query("SELECT s.id FROM Shop s WHERE s.isActive = true " +
                         "AND s.category IN :categories " +
                         "AND s.id NOT IN :excludedIds " +
                         "ORDER BY s.trendingScore DESC, s.ratingAvg DESC")
-        List<Shop> findByCategoryInAndIdNotIn(
+        List<Long> findIdsByCategoryInAndIdNotIn(
                         @Param("categories") List<String> categories,
                         @Param("excludedIds") List<Long> excludedIds);
 

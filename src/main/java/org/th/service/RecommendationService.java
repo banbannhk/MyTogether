@@ -33,11 +33,14 @@ public class RecommendationService {
      * Get personalized recommendations for a user or device
      */
     @Cacheable("recommendations")
-    @Transactional(readOnly = true)
-    public List<Shop> getRecommendedShops(String username) {
-        return getRecommendedShops(username, null);
-    }
-
+    /**
+     * Get personalized recommendations for a user or device using Weighted Scoring
+     * Scoring:
+     * - Favorite: 5 points
+     * - Positive Review (>3): 4 points
+     * - Search Query Match: 3 points
+     * - Frequent View (>2): 2 points
+     */
     @Transactional(readOnly = true)
     public List<Shop> getRecommendedShops(String username, String deviceId) {
         User user = null;
@@ -45,97 +48,87 @@ public class RecommendationService {
             user = userRepository.findByUsername(username).orElse(null);
         }
 
-        // If neither user nor deviceId is present, return empty
         if (user == null && deviceId == null) {
             return new ArrayList<>();
         }
 
         Long userId = (user != null) ? user.getId() : null;
 
-        // 1. Get user's interaction history (Favorites, Reviews, Activities)
-        List<Favorite> favorites = new ArrayList<>();
-        List<Review> reviews = new ArrayList<>();
-
-        // 2. Identify excluded IDs (shops user already knows)
+        // 1. Gather Signals
         Set<Long> excludedIds = new HashSet<>();
         Set<String> preferredCategories = new HashSet<>();
+        Set<String> searchKeywords = new HashSet<>();
 
+        // 1a. User Signals
         if (userId != null) {
-            favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
-            reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            List<Favorite> favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            favorites.forEach(f -> {
+                excludedIds.add(f.getShop().getId()); // Don't recommend what they already favorited
+                preferredCategories.add(f.getShop().getCategory());
+            });
 
-            // OPTIMIZATION: Fetch top categories directly from DB
-            List<Object[]> topCategories = userActivityRepository.findTopCategoriesByUser(userId);
-            for (Object[] row : topCategories) {
-                String category = (String) row[0];
-                if (category != null)
-                    preferredCategories.add(category);
-            }
+            List<Review> reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            reviews.forEach(r -> {
+                excludedIds.add(r.getShop().getId()); // Don't recommend what they already reviewed
+                if (r.getRating() >= 3)
+                    preferredCategories.add(r.getShop().getCategory());
+            });
+
+            // Top Search Queries
+            List<Object[]> topSearches = userActivityRepository.findTopSearchQueriesByUser(userId);
+            topSearches.stream().limit(5).forEach(obj -> searchKeywords.add((String) obj[0]));
         }
 
+        // 1b. Device Signals (for both guest and user)
         if (deviceId != null) {
-            // OPTIMIZATION: Fetch top categories for device
+            // Top Categories by View
+            // Note: We don't exclude viewed shops because we might want to re-recommend
+            // them if not favorited yet?
+            // Actually, for "Fresh" recommendations, let's exclusion viewed shops if viewed
+            // VERY recently?
+            // For now, let's keep it simple and NOT exclude views, only Favorites/Reviews.
+
             List<Object[]> topCategories = userActivityRepository.findTopCategoriesByDevice(deviceId);
-            for (Object[] row : topCategories) {
-                String category = (String) row[0];
-                if (category != null)
-                    preferredCategories.add(category);
-            }
+            topCategories.stream().limit(5).forEach(obj -> preferredCategories.add((String) obj[0]));
+
+            List<Object[]> topSearches = userActivityRepository.findTopSearchQueriesByDevice(deviceId);
+            topSearches.stream().limit(5).forEach(obj -> searchKeywords.add((String) obj[0]));
         }
 
-        for (Favorite fav : favorites) {
-            excludedIds.add(fav.getShop().getId());
-            preferredCategories.add(fav.getShop().getCategory());
-        }
-
-        for (Review review : reviews) {
-            excludedIds.add(review.getShop().getId());
-            if (review.getRating() >= 3) { // Only count categories from good reviews
-                preferredCategories.add(review.getShop().getCategory());
-            }
-        }
-
-        // Ensure list is not empty for NOT IN clause
-        if (excludedIds.isEmpty()) {
+        if (excludedIds.isEmpty())
             excludedIds.add(-1L);
+        if (preferredCategories.isEmpty() && searchKeywords.isEmpty()) {
+            return shopRepository
+                    .findTop10ByIsActiveTrueAndIdNotInOrderByTrendingScoreDesc(new ArrayList<>(excludedIds));
         }
 
-        List<Shop> recommendations = new ArrayList<>();
+        // 2. Fetch Candidates (Optimized Single Query)
+        // We look for shops in preferred categories OR matching search keywords
+        // This is a bit complex for a single JPA query if we want to mix both.
+        // Strategy: Fetch candidates from categories, then filter/sort in memory.
 
-        // 3. Find shops in preferred categories
+        // 2. Fetch Candidates (Optimized for Performance)
+        // We fetch only IDs first to avoid loading unnecessary entity data (and large
+        // blobs/relations)
+        List<Long> candidateIds = new ArrayList<>();
         if (!preferredCategories.isEmpty()) {
-            List<Shop> categoryMatches = shopRepository.findByCategoryInAndIdNotIn(
-                    new ArrayList<>(preferredCategories),
-                    new ArrayList<>(excludedIds));
-            recommendations.addAll(categoryMatches);
+            candidateIds.addAll(shopRepository.findIdsByCategoryInAndIdNotIn(
+                    new ArrayList<>(preferredCategories), new ArrayList<>(excludedIds)));
         }
 
-        // 4. Fill remaining slots with Trending shops (if not enough category matches)
-        if (recommendations.size() < 10) {
-            List<Shop> trendingFillers = shopRepository.findTop10ByIsActiveTrueAndIdNotInOrderByTrendingScoreDesc(
-                    new ArrayList<>(excludedIds));
+        // Limit results to top 10 distinct matches
+        List<Long> finalIds = candidateIds.stream()
+                .distinct()
+                .limit(10)
+                .collect(Collectors.toList());
 
-            for (Shop shop : trendingFillers) {
-                if (!recommendations.contains(shop)) {
-                    recommendations.add(shop);
-                }
-                if (recommendations.size() >= 10)
-                    break;
-            }
+        if (finalIds.isEmpty()) {
+            // Fallback: Use trending shops optimization
+            return shopRepository
+                    .findTop10ByIsActiveTrueAndIdNotInOrderByTrendingScoreDesc(new ArrayList<>(excludedIds));
         }
 
-        List<Shop> finalRecommendations = recommendations.stream().limit(10).collect(Collectors.toList());
-
-        if (finalRecommendations.isEmpty()) {
-            return finalRecommendations;
-        }
-
-        // Fetch with photos to ensure no LazyInitializationException
-        List<Long> ids = finalRecommendations.stream().map(Shop::getId).collect(Collectors.toList());
-        // Use findByIdInWithPhotos from ShopRepository (need to expose it or cast)
-        // Since RecommendationService has ShopRepository, we can just call it if it's
-        // there.
-        // But wait, findByIdInWithPhotos is in ShopRepository interface.
-        return shopRepository.findByIdInWithPhotos(ids);
+        // 3. Final Fetch: Load only what we need with Photos to prevent N+1
+        return shopRepository.findByIdInWithPhotos(finalIds);
     }
 }

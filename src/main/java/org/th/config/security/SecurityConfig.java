@@ -43,6 +43,7 @@ public class SecurityConfig {
                         // Public endpoints - No authentication required
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/api/feed/**", // ✅ Public feed (Guest personalized)
                                 "/api/shops/**", // ✅ Public shop browsing
                                 "/api/reviews/**", // Reviews are public to read
                                 "/api/system/**", // System diagnostics

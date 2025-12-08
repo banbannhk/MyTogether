@@ -112,6 +112,14 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Long
                         "ORDER BY count DESC")
         List<Object[]> findTopSearchQueriesByUser(@Param("userId") Long userId);
 
+        @Query("SELECT a.searchQuery, COUNT(a) as count " +
+                        "FROM UserActivity a " +
+                        "WHERE a.deviceId = :deviceId AND a.activityType = 'SEARCH_QUERY' " +
+                        "AND a.searchQuery IS NOT NULL " +
+                        "GROUP BY a.searchQuery " +
+                        "ORDER BY count DESC")
+        List<Object[]> findTopSearchQueriesByDevice(@Param("deviceId") String deviceId);
+
         @Query("SELECT a.targetName, COUNT(a) FROM UserActivity a " +
                         "WHERE a.user.id = :userId AND a.activityType IN ('VIEW_CATEGORY', 'VIEW_SHOP') " +
                         "AND a.targetName IS NOT NULL " +
