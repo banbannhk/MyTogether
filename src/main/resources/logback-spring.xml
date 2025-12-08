@@ -16,8 +16,8 @@
         <appName>MyTogether</appName>
         <sourceToken>${LOGTAIL_SOURCE_TOKEN}</sourceToken>
         <ingestUrl>https://s1620782.eu-nbg-2.betterstackdata.com</ingestUrl>
-        <mdcFields>requestId,userId,deviceId</mdcFields>
-        <mdcTypes>string,string,string</mdcTypes>
+        <mdcFields>requestId,userId,deviceId,clientIp,serverId</mdcFields>
+        <mdcTypes>string,string,string,string,string</mdcTypes>
     </appender>
 
     <!-- Default local logging -->

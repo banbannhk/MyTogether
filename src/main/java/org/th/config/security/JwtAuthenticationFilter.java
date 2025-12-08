@@ -47,6 +47,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 MDC.put("deviceId", deviceId);
             }
 
+            // Extract Client IP
+            String clientIp = request.getHeader("X-Forwarded-For");
+            if (clientIp == null || clientIp.isEmpty()) {
+                clientIp = request.getRemoteAddr();
+            } else {
+                // X-Forwarded-For can contain multiple IPs, the first one is the client
+                clientIp = clientIp.split(",")[0].trim();
+            }
+            MDC.put("clientIp", clientIp);
+
+            // Capture Server ID (Hostname/Container ID)
+            String serverId = System.getenv("HOSTNAME");
+            if (serverId == null) {
+                try {
+                    serverId = java.net.InetAddress.getLocalHost().getHostName();
+                } catch (Exception e) {
+                    serverId = "unknown";
+                }
+            }
+            MDC.put("serverId", serverId);
+
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {

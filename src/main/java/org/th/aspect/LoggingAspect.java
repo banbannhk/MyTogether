@@ -192,9 +192,11 @@ public class LoggingAspect {
         String requestId = org.slf4j.MDC.get("requestId");
         String userId = org.slf4j.MDC.get("userId");
         String deviceId = org.slf4j.MDC.get("deviceId");
+        String clientIp = org.slf4j.MDC.get("clientIp");
+        String serverId = org.slf4j.MDC.get("serverId");
 
         StringBuilder context = new StringBuilder();
-        if (requestId != null || userId != null || deviceId != null) {
+        if (requestId != null || userId != null || deviceId != null || clientIp != null || serverId != null) {
             context.append(" [");
             if (requestId != null) {
                 context.append("reqId=").append(requestId.substring(0, Math.min(8, requestId.length())));
@@ -208,6 +210,16 @@ public class LoggingAspect {
                 if (context.length() > 2)
                     context.append(", ");
                 context.append("device=").append(deviceId);
+            }
+            if (clientIp != null) {
+                if (context.length() > 2)
+                    context.append(", ");
+                context.append("ip=").append(clientIp);
+            }
+            if (serverId != null) {
+                if (context.length() > 2)
+                    context.append(", ");
+                context.append("server=").append(serverId);
             }
             context.append("]");
         }
