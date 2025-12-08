@@ -96,6 +96,19 @@ public class ShopController {
         }
 
         /**
+         * Get shop menu
+         */
+        @GetMapping("/{id}/menu")
+        @RateLimit(tier = Tier.IO_INTENSIVE)
+        @Operation(summary = "Get shop menu", description = "Get full menu for a shop")
+        public ResponseEntity<ApiResponse<List<org.th.dto.MenuCategoryDTO>>> getShopMenu(
+                        @Parameter(description = "Shop ID") @PathVariable Long id) {
+
+                List<org.th.dto.MenuCategoryDTO> menu = shopService.getShopMenu(id);
+                return ResponseEntity.ok(ApiResponse.success("Shop menu retrieved", menu));
+        }
+
+        /**
          * Get shop details by slug
          */
         @GetMapping("/slug/{slug}")

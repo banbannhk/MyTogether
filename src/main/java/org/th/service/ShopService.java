@@ -147,6 +147,49 @@ public class ShopService {
     }
 
     /**
+     * Get shop menu separately
+     * 
+     * @param shopId Shop ID
+     * @return List of MenuCategoryDTO
+     */
+    @Cacheable(value = "shopMenu", key = "#shopId")
+    public List<org.th.dto.MenuCategoryDTO> getShopMenu(Long shopId) {
+        logger.info("Fetching menu for shop ID: {}", shopId);
+        List<org.th.entity.shops.MenuCategory> categories = shopRepository.findMenuCategoriesWithItems(shopId);
+
+        return categories.stream()
+                .map(category -> {
+                    List<org.th.dto.MenuItemDTO> itemDTOs = category.getItems().stream()
+                            .map(item -> org.th.dto.MenuItemDTO.builder()
+                                    .id(item.getId())
+                                    .name(item.getName())
+                                    .nameMm(item.getNameMm())
+                                    .nameEn(item.getNameEn())
+                                    .price(item.getPrice())
+                                    .currency(item.getCurrency())
+                                    .imageUrl(item.getImageUrl())
+                                    .isAvailable(item.getIsAvailable())
+                                    .isPopular(item.getIsPopular())
+                                    .isVegetarian(item.getIsVegetarian())
+                                    .isSpicy(item.getIsSpicy())
+                                    .displayOrder(item.getDisplayOrder())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    return org.th.dto.MenuCategoryDTO.builder()
+                            .id(category.getId())
+                            .name(category.getName())
+                            .nameMm(category.getNameMm())
+                            .nameEn(category.getNameEn())
+                            .displayOrder(category.getDisplayOrder())
+                            .isActive(category.getIsActive())
+                            .items(itemDTOs)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Get shop by ID
      *
      * @param shopId Shop ID
@@ -162,25 +205,16 @@ public class ShopService {
         // If shop exists, fetch menu items and operating hours separately
         // If shop exists, fully initialize lazy collections for Caching/Controller use
         shopOpt.ifPresent(shop -> {
-            // Explicitly trigger loading of lazy collections
-            if (shop.getMenuCategories() != null) {
-                shop.getMenuCategories().forEach(category -> {
-                    if (category.getItems() != null) {
-                        category.getItems().size(); // Initialize menu items
-                    }
-                });
-            }
+            // Only initialize critical data for the main view
             if (shop.getOperatingHours() != null) {
                 shop.getOperatingHours().size(); // Initialize operating hours
             }
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size(); // Initialize photos
             }
-            if (shop.getPhotos() != null) {
-                shop.getPhotos().size(); // Initialize photos
-            }
-            // Reviews are NOT initialized here anymore to prevent performance issues
-            // Use getShopDetailsById() for full details or fetch reviews separately
+
+            // DECOUPLED: Menu and Reviews are NOT initialized here.
+            // They are fetched via separate API calls.
         });
 
         return shopOpt;
@@ -204,12 +238,8 @@ public class ShopService {
 
         Shop shop = shopOpt.get();
 
-        // Fetch only top 10 visible reviews
-        List<org.th.entity.shops.Review> topReviews = reviewRepository
-                .findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(shopId);
-
-        // Convert to DTO using optimized review list
-        return Optional.of(convertToDetailDTO(shop, topReviews));
+        // DECOUPLED: Pass empty list for reviews (fetched separately)
+        return Optional.of(convertToDetailDTO(shop, null));
     }
 
     /**
@@ -225,23 +255,13 @@ public class ShopService {
 
         // Initialize lazy collections
         if (shop != null) {
-            if (shop.getMenuCategories() != null) {
-                shop.getMenuCategories().forEach(category -> {
-                    if (category.getItems() != null) {
-                        category.getItems().size();
-                    }
-                });
-            }
             if (shop.getOperatingHours() != null) {
                 shop.getOperatingHours().size();
             }
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size();
             }
-            if (shop.getPhotos() != null) {
-                shop.getPhotos().size();
-            }
-            // Reviews are NOT initialized here
+            // Reviews and Menu are NOT initialized here
         }
         return shop;
     }
@@ -262,12 +282,8 @@ public class ShopService {
             return null;
         }
 
-        // Fetch only top 10 visible reviews
-        List<org.th.entity.shops.Review> topReviews = reviewRepository
-                .findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(shop.getId());
-
-        // Convert to DTO using optimized review list
-        return convertToDetailDTO(shop, topReviews);
+        // DECOUPLED: Pass empty list for reviews (fetched separately)
+        return convertToDetailDTO(shop, null);
     }
 
     /**
@@ -566,52 +582,60 @@ public class ShopService {
                         .build())
                 .collect(Collectors.toList());
 
-        // Convert menu categories with items
-        List<org.th.dto.MenuCategoryDTO> menuCategoryDTOs = shop.getMenuCategories().stream()
-                .map(category -> {
-                    List<org.th.dto.MenuItemDTO> itemDTOs = category.getItems().stream()
-                            .map(item -> org.th.dto.MenuItemDTO.builder()
-                                    .id(item.getId())
-                                    .name(item.getName())
-                                    .nameMm(item.getNameMm())
-                                    .nameEn(item.getNameEn())
-                                    .price(item.getPrice())
-                                    .currency(item.getCurrency())
-                                    .imageUrl(item.getImageUrl())
-                                    .isAvailable(item.getIsAvailable())
-                                    .isPopular(item.getIsPopular())
-                                    .isVegetarian(item.getIsVegetarian())
-                                    .isSpicy(item.getIsSpicy())
-                                    .displayOrder(item.getDisplayOrder())
-                                    .build())
-                            .collect(Collectors.toList());
+        // Convert menu categories ONLY if loaded (otherwise skip/return empty)
+        // In the optimized flow, this will likely be empty/null, which is correct
+        // (Decoupled)
+        List<org.th.dto.MenuCategoryDTO> menuCategoryDTOs = null;
+        if (shop.getMenuCategories() != null && org.hibernate.Hibernate.isInitialized(shop.getMenuCategories())) {
+            menuCategoryDTOs = shop.getMenuCategories().stream()
+                    .map(category -> {
+                        List<org.th.dto.MenuItemDTO> itemDTOs = category.getItems().stream()
+                                .map(item -> org.th.dto.MenuItemDTO.builder()
+                                        .id(item.getId())
+                                        .name(item.getName())
+                                        .nameMm(item.getNameMm())
+                                        .nameEn(item.getNameEn())
+                                        .price(item.getPrice())
+                                        .currency(item.getCurrency())
+                                        .imageUrl(item.getImageUrl())
+                                        .isAvailable(item.getIsAvailable())
+                                        .isPopular(item.getIsPopular())
+                                        .isVegetarian(item.getIsVegetarian())
+                                        .isSpicy(item.getIsSpicy())
+                                        .displayOrder(item.getDisplayOrder())
+                                        .build())
+                                .collect(Collectors.toList());
 
-                    return org.th.dto.MenuCategoryDTO.builder()
-                            .id(category.getId())
-                            .name(category.getName())
-                            .nameMm(category.getNameMm())
-                            .nameEn(category.getNameEn())
-                            .displayOrder(category.getDisplayOrder())
-                            .isActive(category.getIsActive())
-                            .items(itemDTOs)
-                            .build();
-                })
-                .collect(Collectors.toList());
+                        return org.th.dto.MenuCategoryDTO.builder()
+                                .id(category.getId())
+                                .name(category.getName())
+                                .nameMm(category.getNameMm())
+                                .nameEn(category.getNameEn())
+                                .displayOrder(category.getDisplayOrder())
+                                .isActive(category.getIsActive())
+                                .items(itemDTOs)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+        }
 
-        // Convert provided reviews (already sorted/limited)
-        List<org.th.dto.ReviewSummaryDTO> reviewDTOs = topReviews.stream()
-                .map(review -> org.th.dto.ReviewSummaryDTO.builder()
-                        .id(review.getId())
-                        .rating(review.getRating())
-                        .comment(review.getComment())
-                        .commentMm(review.getCommentMm())
-                        .reviewerName(review.getReviewerName())
-                        .helpfulCount(review.getHelpfulCount())
-                        .ownerResponse(review.getOwnerResponse())
-                        .ownerResponseMm(review.getOwnerResponseMm())
-                        .createdAt(review.getCreatedAt())
-                        .build())
-                .collect(Collectors.toList());
+        // Convert provided reviews if present
+        List<org.th.dto.ReviewSummaryDTO> reviewDTOs = null;
+        if (topReviews != null) {
+            reviewDTOs = topReviews.stream()
+                    .map(review -> org.th.dto.ReviewSummaryDTO.builder()
+                            .id(review.getId())
+                            .rating(review.getRating())
+                            .comment(review.getComment())
+                            .commentMm(review.getCommentMm())
+                            .reviewerName(review.getReviewerName())
+                            .helpfulCount(review.getHelpfulCount())
+                            .ownerResponse(review.getOwnerResponse())
+                            .ownerResponseMm(review.getOwnerResponseMm())
+                            .createdAt(review.getCreatedAt())
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
         // Convert operating hours
         List<org.th.dto.OperatingHourDTO> operatingHourDTOs = shop.getOperatingHours().stream()
