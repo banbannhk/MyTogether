@@ -118,9 +118,7 @@ public class LoggingAspect {
 
             return result;
         } catch (IllegalArgumentException e) {
-            log.error("Illegal argument: {} in {}.{}()", getParametersInfo(joinPoint),
-                    joinPoint.getSignature().getDeclaringTypeName(),
-                    joinPoint.getSignature().getName());
+            // Re-throw to be handled by GlobalExceptionHandler
             throw e;
         }
     }

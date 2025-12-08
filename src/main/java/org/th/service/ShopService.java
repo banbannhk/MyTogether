@@ -174,6 +174,9 @@ public class ShopService {
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size(); // Initialize photos
             }
+            if (shop.getReviews() != null) {
+                shop.getReviews().size(); // Initialize reviews
+            }
         });
 
         return shopOpt;
@@ -204,6 +207,9 @@ public class ShopService {
             }
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size();
+            }
+            if (shop.getReviews() != null) {
+                shop.getReviews().size();
             }
         }
         return shop;
