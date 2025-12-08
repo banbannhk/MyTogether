@@ -104,6 +104,8 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "FROM shops " +
                         "WHERE is_active = true AND category = :category" +
                         ") AS shops_with_distance " +
+                        "WHERE is_active = true AND category = :category" +
+                        ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY distance", nativeQuery = true)
         List<Shop> findNearbyShopsByCategory(@Param("latitude") Double latitude,
@@ -286,13 +288,15 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
         /**
          * Find nearby trending shops within radius
          */
-        @Query(value = "SELECT *, " +
+        @Query(value = "SELECT * FROM ( " +
+                        "SELECT *, " +
                         "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true " +
-                        "HAVING distance < :radiusInKm " +
+                        ") AS shops_with_distance " +
+                        "WHERE distance < :radiusInKm " +
                         "ORDER BY trending_score DESC, distance ASC " +
                         "LIMIT :limit", nativeQuery = true)
         List<Shop> findNearbyTrendingShops(
@@ -324,13 +328,15 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
          * Find nearby shops filtered by categories (optimized - no in-memory filtering)
          * Combines location and category filtering in database
          */
-        @Query(value = "SELECT *, " +
+        @Query(value = "SELECT * FROM ( " +
+                        "SELECT *, " +
                         "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true AND category IN :categories " +
-                        "HAVING distance < :radiusInKm " +
+                        ") AS shops_with_distance " +
+                        "WHERE distance < :radiusInKm " +
                         "ORDER BY distance LIMIT :limit", nativeQuery = true)
         List<Shop> findNearbyShopsByCategories(
                         @Param("latitude") Double latitude,
@@ -350,13 +356,15 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
         /**
          * Find nearby recent shops (GPS Fallback for New Shops)
          */
-        @Query(value = "SELECT *, " +
+        @Query(value = "SELECT * FROM ( " +
+                        "SELECT *, " +
                         "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true AND created_at >= :since " +
-                        "HAVING distance < :radiusInKm " +
+                        ") AS shops_with_distance " +
+                        "WHERE distance < :radiusInKm " +
                         "ORDER BY created_at DESC, distance ASC " +
                         "LIMIT :limit", nativeQuery = true)
         List<Shop> findNearbyRecentShops(
@@ -369,13 +377,15 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
         /**
          * Find nearby recent shops filtered by category
          */
-        @Query(value = "SELECT *, " +
+        @Query(value = "SELECT * FROM ( " +
+                        "SELECT *, " +
                         "(6371 * acos(cos(radians(:latitude)) * cos(radians(latitude)) * " +
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true AND created_at >= :since AND category IN :categories " +
-                        "HAVING distance < :radiusInKm " +
+                        ") AS shops_with_distance " +
+                        "WHERE distance < :radiusInKm " +
                         "ORDER BY created_at DESC, distance ASC " +
                         "LIMIT :limit", nativeQuery = true)
         List<Shop> findNearbyRecentShopsByCategories(

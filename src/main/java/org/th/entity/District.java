@@ -39,10 +39,10 @@ public class District {
     private String slug;
 
     @Column(precision = 10, scale = 8)
-    private Double latitude;
+    private java.math.BigDecimal latitude;
 
     @Column(precision = 11, scale = 8)
-    private Double longitude;
+    private java.math.BigDecimal longitude;
 
     @Builder.Default
     @Column(nullable = false)
