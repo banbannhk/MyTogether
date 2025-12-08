@@ -43,3 +43,9 @@ build/
 app.log
 hs_err_pid*
 
+### Data & Office ###
+*.xlsx
+*.xls
+*.csv
+~$*
+
