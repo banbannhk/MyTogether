@@ -33,31 +33,56 @@ public class DistrictService {
             log.info("Seeding Bangkok districts...");
             List<District> districts = new ArrayList<>();
             String[][] data = {
-                    { "Phra Nakhon", "พระนคร" }, { "Dusit", "ดุสิต" }, { "Nong Chok", "หนองจอก" },
-                    { "Bang Rak", "บางรัก" },
-                    { "Bang Khen", "บางเขน" }, { "Bang Kapi", "บางกะปิ" }, { "Pathum Wan", "ปทุมวัน" },
-                    { "Pom Prap Sattru Phai", "ป้อมปราบศัตรูพ่าย" },
-                    { "Phra Khanong", "พระโขนง" }, { "Min Buri", "มีนบุรี" }, { "Lat Krabang", "ลาดกระบัง" },
-                    { "Yan Nawa", "ยานนาวา" },
-                    { "Samphanthawong", "สัมพันธวงศ์" }, { "Phaya Thai", "พญาไท" }, { "Thon Buri", "ธนบุรี" },
-                    { "Bangkok Yai", "บางกอกใหญ่" },
-                    { "Huai Khwang", "ห้วยขวาง" }, { "Khlong San", "คลองสาน" }, { "Taling Chan", "ตลิ่งชัน" },
-                    { "Bangkok Noi", "บางกอกน้อย" },
-                    { "Bang Khun Thian", "บางขุนเทียน" }, { "Phasi Charoen", "ภาษีเจริญ" }, { "Nong Khaem", "หนองแขม" },
-                    { "Rat Burana", "ราษฎร์บูรณะ" },
-                    { "Bang Phlat", "บางพลัด" }, { "Din Daeng", "ดินแดง" }, { "Bueng Kum", "บึงกุ่ม" },
-                    { "Sathon", "สาทร" },
-                    { "Bang Sue", "บางซื่อ" }, { "Chatuchak", "จตุจักร" }, { "Bang Kho Laem", "บางคอแหลม" },
-                    { "Prawet", "ประเวศ" },
-                    { "Khlong Toei", "คลองเตย" }, { "Suan Luang", "สวนหลวง" }, { "Chom Thong", "จอมทอง" },
-                    { "Don Mueang", "ดอนเมือง" },
-                    { "Ratchathewi", "ราชเทวี" }, { "Lat Phrao", "ลาดพร้าว" }, { "Watthana", "วัฒนา" },
-                    { "Bang Khae", "บางแค" },
-                    { "Lak Si", "หลักสี่" }, { "Sai Mai", "สายไหม" }, { "Khan Na Yao", "คันนายาว" },
-                    { "Saphan Sung", "สะพานสูง" },
-                    { "Wang Thonglang", "วังทองหลาง" }, { "Khlong Sam Wa", "คลองสามวา" }, { "Bang Na", "บางนา" },
-                    { "Thawi Watthana", "ทวีวัฒนา" },
-                    { "Thung Khru", "ทุ่งครุ" }, { "Bang Bon", "บางบอน" }
+                    { "Phra Nakhon", "พระนคร", "ဖရာနခွန်" },
+                    { "Dusit", "ดุสิต", "ဒူဆစ်" },
+                    { "Nong Chok", "หนองจอก", "နောင်ချော့" },
+                    { "Bang Rak", "บางรัก", "ဘန်ရက်" },
+                    { "Bang Khen", "บางเขน", "ဘန်ခိန်း" },
+                    { "Bang Kapi", "บางกะปิ", "ဘန်ကပိ" },
+                    { "Pathum Wan", "ปทุมวัน", "ပသွမ်ဝမ်" },
+                    { "Pom Prap Sattru Phai", "ป้อมปราบศัตรูพ่าย", "ပွန်ပရပ်ဆတ်ထရူဖိုင်" },
+                    { "Phra Khanong", "พระโขนง", "ဖရာခနုံ" },
+                    { "Min Buri", "มีนบุรี", "မင်းဘူရီ" },
+                    { "Lat Krabang", "ลาดกระบัง", "လတ်ក្រဘန်" },
+                    { "Yan Nawa", "ยานนาวา", "ရန်နဝါ" },
+                    { "Samphanthawong", "สัมพันธวงศ์", "ဆမ်ဖန်ထဝုန်" },
+                    { "Phaya Thai", "พญาไท", "ဖယာထိုင်း" },
+                    { "Thon Buri", "ธนบุรี", "သွန်ဘူရီ" },
+                    { "Bangkok Yai", "บางกอกใหญ่", "ဘန်ကောက်ယိုင်" },
+                    { "Huai Khwang", "ห้วยขวาง", "ဟွေခဝမ်" },
+                    { "Khlong San", "คลองสาน", "ခလုံဆန်" },
+                    { "Taling Chan", "ตลิ่งชัน", "တလိမ်ချန်" },
+                    { "Bangkok Noi", "บางกอกน้อย", "ဘန်ကောက်နွိုင်း" },
+                    { "Bang Khun Thian", "บางขุนเทียน", "ဘန်ခုန်ထီယန်" },
+                    { "Phasi Charoen", "ภาษีเจริญ", "ဖာဆီချာရွန်း" },
+                    { "Nong Khaem", "หนองแขม", "နောင်ခမ်" },
+                    { "Rat Burana", "ราษฎร์บูรณะ", "ရတ်ဘူရန" },
+                    { "Bang Phlat", "บางพลัด", "ဘန်ဖလပ်" },
+                    { "Din Daeng", "ดินแดง", "ဒင်ဒန်း" },
+                    { "Bueng Kum", "บึงกุ่ม", "ဘွန်းကုမ်" },
+                    { "Sathon", "สาทร", "စသွန်" },
+                    { "Bang Sue", "บางซื่อ", "ဘန်ဆူ" },
+                    { "Chatuchak", "จตุจักร", "ကျတူဂျက်" },
+                    { "Bang Kho Laem", "บางคอแหลม", "ဘန်ခိုလမ်" },
+                    { "Prawet", "ประเวศ", "ပရာဝက်" },
+                    { "Khlong Toei", "คลองเตย", "ခလုံတေ့" },
+                    { "Suan Luang", "สวนหลวง", "ဆွန်လောင်" },
+                    { "Chom Thong", "จอมทอง", "ချွန်ထောင်" },
+                    { "Don Mueang", "ดอนเมือง", "ဒွန်မောင်း" },
+                    { "Ratchathewi", "ราชเทวี", "ရာ့ချ်ထေဝီ" },
+                    { "Lat Phrao", "ลาดพร้าว", "လတ်ဖလောင်း" },
+                    { "Watthana", "วัฒนา", "ဝတ်ထနာ" },
+                    { "Bang Khae", "บางแค", "ဘန်ခဲ" },
+                    { "Lak Si", "หลักสี่", "လက်စီ" },
+                    { "Sai Mai", "สายไหม", "ဆိုင်းမိုင်" },
+                    { "Khan Na Yao", "คันนายาว", "ခန်နာယောင်" },
+                    { "Saphan Sung", "สะพานสูง", "ဆဖန်ဆုန်" },
+                    { "Wang Thonglang", "วังทองหลาง", "ဝမ်ထောင်လမ်" },
+                    { "Khlong Sam Wa", "คลองสามวา", "ခလုံဆမ်ဝါ" },
+                    { "Bang Na", "บางนา", "ဘန်နာ" },
+                    { "Thawi Watthana", "ทวีวัฒนา", "ထဝီဝတ်ထနာ" },
+                    { "Thung Khru", "ทุ่งครุ", "ထုန်ခရု" },
+                    { "Bang Bon", "บางบอน", "ဘန်ဘွန်" }
             };
 
             for (String[] d : data) {
@@ -65,7 +90,7 @@ public class DistrictService {
                         .city(bangkok)
                         .nameEn(d[0])
                         .nameTh(d[1])
-                        .nameMm(d[0])
+                        .nameMm(d[2])
                         .slug(d[0].toLowerCase().replace(" ", "-"))
                         .active(true)
                         .build());

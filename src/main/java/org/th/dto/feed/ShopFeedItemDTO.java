@@ -25,7 +25,12 @@ public class ShopFeedItemDTO {
     private BigDecimal ratingAvg;
     private Integer ratingCount;
     private String address;
-    private String township;
+    private String district;
+    private String districtMm;
+    private String district;
+    private String districtMm;
+    private String city;
+    private String cityMm;Mm;
 
     // Location info
     private BigDecimal latitude;

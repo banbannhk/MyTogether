@@ -30,8 +30,10 @@ public class ShopListDTO {
 
     private String address;
     private String addressMm;
-    private String township;
+    private String district;
+    private String districtMm;
     private String city;
+    private String cityMm;
 
     private BigDecimal latitude;
     private BigDecimal longitude;
