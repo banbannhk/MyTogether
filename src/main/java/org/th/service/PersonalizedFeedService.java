@@ -360,7 +360,7 @@ public class PersonalizedFeedService {
                 .ratingAvg(shop.getRatingAvg())
                 .ratingCount(shop.getRatingCount())
                 .address(shop.getAddress())
-                .township(shop.getTownship())
+                .district(shop.getTownship())
                 .latitude(shop.getLatitude())
                 .longitude(shop.getLongitude())
                 .distanceKm(distance)

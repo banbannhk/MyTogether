@@ -27,10 +27,8 @@ public class ShopFeedItemDTO {
     private String address;
     private String district;
     private String districtMm;
-    private String district;
-    private String districtMm;
     private String city;
-    private String cityMm;Mm;
+    private String cityMm;
 
     // Location info
     private BigDecimal latitude;

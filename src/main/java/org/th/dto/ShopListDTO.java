@@ -57,4 +57,5 @@ public class ShopListDTO {
 
     // Distance from user location (only populated for nearby searches)
     private Double distance;
+
 }

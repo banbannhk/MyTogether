@@ -35,8 +35,6 @@ public class ShopDetailDTO {
 
     private String address;
     private String addressMm;
-    private String address;
-    private String addressMm;
     private String district;
     private String districtMm;
     private String city;
