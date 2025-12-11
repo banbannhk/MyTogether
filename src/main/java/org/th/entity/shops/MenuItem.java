@@ -7,6 +7,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "menu_items")
@@ -59,6 +61,9 @@ public class MenuItem {
 
     @Column(name = "display_order")
     private Integer displayOrder = 0;
+
+    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MenuItemPhoto> photos = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

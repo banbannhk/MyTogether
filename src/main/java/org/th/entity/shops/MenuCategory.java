@@ -45,6 +45,12 @@ public class MenuCategory {
     // ========== ADD THIS RELATIONSHIP ==========
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MenuItem> items = new ArrayList<>();
+
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MenuCategoryPhoto> photos = new ArrayList<>();
+
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
     // ==========================================
 
     @CreationTimestamp

@@ -133,7 +133,7 @@ public class Shop {
 
     @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OperatingHour> operatingHours = new ArrayList<>();
+    private java.util.Set<OperatingHour> operatingHours = new java.util.HashSet<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

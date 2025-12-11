@@ -28,4 +28,5 @@ public class MenuItemDTO {
     private Boolean isVegetarian;
     private Boolean isSpicy;
     private Integer displayOrder;
+    private java.util.List<PhotoDTO> photos;
 }

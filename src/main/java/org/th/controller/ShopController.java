@@ -34,6 +34,7 @@ public class ShopController {
         private final UserActivityService userActivityService;
         private final TrendingService trendingService;
         private final RecommendationService recommendationService;
+        private final org.th.service.MenuCategoryService menuCategoryService;
         private final org.th.repository.ShopRepository shopRepository; // Direct access for aggregation
 
         /**
@@ -104,7 +105,7 @@ public class ShopController {
         public ResponseEntity<ApiResponse<List<org.th.dto.MenuCategoryDTO>>> getShopMenu(
                         @Parameter(description = "Shop ID") @PathVariable Long id) {
 
-                List<org.th.dto.MenuCategoryDTO> menu = shopService.getShopMenu(id);
+                List<org.th.dto.MenuCategoryDTO> menu = menuCategoryService.getMenuCategoriesByShopId(id);
                 return ResponseEntity.ok(ApiResponse.success("Shop menu retrieved", menu));
         }
 
@@ -191,7 +192,7 @@ public class ShopController {
         @GetMapping("/search")
         @RateLimit(tier = Tier.CPU_INTENSIVE)
         @Operation(summary = "Search shops", description = "Search shops by name or food/menu items (supports Myanmar and English)")
-        public ResponseEntity<ApiResponse<List<ShopListDTO>>> searchShops(
+        public ResponseEntity<ApiResponse<org.th.dto.SearchResponseDTO>> searchShops(
                         @Parameter(description = "Search keyword") @RequestParam String q,
                         @Parameter(description = "User's latitude (optional for distance calculation)") @RequestParam(required = false) Double lat,
                         @Parameter(description = "User's longitude (optional for distance calculation)") @RequestParam(required = false) Double lon,
@@ -203,12 +204,18 @@ public class ShopController {
                                 q, null, null, lat, lon,
                                 "type=universal", request);
 
-                List<Shop> shops = shopService.searchShops(q);
+                // Perform combined search
+                org.th.dto.SearchResponseDTO results = shopService.searchCombined(q);
 
-                // If location provided, calculate distances
-                if (lat != null && lon != null) {
-                        // Sort by distance from user location
-                        shops.sort((s1, s2) -> {
+                // If location provided, calculate distances for shops
+                if (lat != null && lon != null && results.getShops() != null) {
+                        // Sort shops by distance from user location
+                        results.getShops().sort((s1, s2) -> {
+                                if (s1.getLatitude() == null || s1.getLongitude() == null)
+                                        return 1;
+                                if (s2.getLatitude() == null || s2.getLongitude() == null)
+                                        return -1;
+
                                 double dist1 = ShopService.calculateDistance(
                                                 lat, lon,
                                                 s1.getLatitude().doubleValue(),
@@ -221,13 +228,11 @@ public class ShopController {
                         });
                 }
 
-                List<ShopListDTO> shopDTOs = shops.stream()
-                                .map(shopService::convertToListDTO)
-                                .collect(Collectors.toList());
-
                 return ResponseEntity.ok(ApiResponse.success(
-                                "Found " + shops.size() + " shops matching '" + q + "'",
-                                shopDTOs));
+                                "Found " + results.getShops().size() + " shops, " +
+                                                results.getCategories().size() + " categories, " +
+                                                results.getMenus().size() + " menu items matching '" + q + "'",
+                                results));
         }
 
         /**

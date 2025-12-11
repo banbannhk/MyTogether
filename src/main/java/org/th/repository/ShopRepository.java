@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.th.entity.shops.Shop;
 import org.th.entity.shops.MenuCategory;
+import org.th.entity.shops.MenuItem;
 import org.th.dto.LocationCountDTO;
 
 import java.time.LocalDateTime;
@@ -31,22 +32,15 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
          */
         @Query("SELECT DISTINCT s FROM Shop s " +
                         "LEFT JOIN FETCH s.photos " +
+                        "LEFT JOIN FETCH s.operatingHours " +
                         "WHERE s.id = :id")
         Optional<Shop> findByIdWithDetails(@Param("id") Long id);
-
-        /**
-         * Fetch menu categories with their items for a shop
-         * This is called after findByIdWithDetails to load collections separately
-         */
-        @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
-                        "LEFT JOIN FETCH mc.items " +
-                        "WHERE mc.shop.id = :shopId")
-        List<MenuCategory> findMenuCategoriesWithItems(@Param("shopId") Long shopId);
 
         /**
          * Fetch operating hours for a shop
          * This is called after findByIdWithDetails to load collections separately
          */
+
         @Query("SELECT oh FROM OperatingHour oh " +
                         "WHERE oh.shop.id = :shopId")
         List<org.th.entity.shops.OperatingHour> findOperatingHoursByShopId(@Param("shopId") Long shopId);
@@ -417,4 +411,17 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "SIMILARITY(s.name_en, :keyword)) DESC " +
                         "LIMIT 10", nativeQuery = true)
         List<Shop> findShopsFuzzy(@Param("keyword") String keyword);
+
+        /**
+         * Search specific menu items by name
+         */
+        @Query("SELECT DISTINCT mi FROM MenuItem mi " +
+                        "JOIN FETCH mi.shop s " +
+                        "LEFT JOIN FETCH mi.photos " +
+                        "WHERE s.isActive = true AND mi.isAvailable = true AND " +
+                        "(LOWER(mi.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(mi.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(mi.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+        List<org.th.entity.shops.MenuItem> searchMenuItems(@Param("keyword") String keyword);
+
 }

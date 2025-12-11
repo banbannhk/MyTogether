@@ -22,5 +22,8 @@ public class MenuCategoryDTO {
     private String nameEn;
     private Integer displayOrder;
     private Boolean isActive;
+    // Enhanced fields
+    private String imageUrl;
+    private List<PhotoDTO> photos;
     private List<MenuItemDTO> items;
 }

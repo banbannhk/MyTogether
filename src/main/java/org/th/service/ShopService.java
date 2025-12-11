@@ -10,6 +10,7 @@ import org.th.repository.ShopRepository;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,9 @@ public class ShopService {
 
     @Autowired
     private org.th.repository.ReviewRepository reviewRepository;
+
+    @Autowired
+    private org.th.service.MenuCategoryService menuCategoryService;
 
     private static final Double DEFAULT_RADIUS_KM = 5.0;
     private static final Double MAX_RADIUS_KM = 50.0;
@@ -156,54 +160,12 @@ public class ShopService {
     }
 
     /**
-     * Get shop menu separately
-     * 
-     * @param shopId Shop ID
-     * @return List of MenuCategoryDTO
-     */
-    @Cacheable(value = "shopMenu", key = "#shopId")
-    public List<org.th.dto.MenuCategoryDTO> getShopMenu(Long shopId) {
-        logger.info("Fetching menu for shop ID: {}", shopId);
-        List<org.th.entity.shops.MenuCategory> categories = shopRepository.findMenuCategoriesWithItems(shopId);
-
-        return categories.stream()
-                .map(category -> {
-                    List<org.th.dto.MenuItemDTO> itemDTOs = category.getItems().stream()
-                            .map(item -> org.th.dto.MenuItemDTO.builder()
-                                    .id(item.getId())
-                                    .name(item.getName())
-                                    .nameMm(item.getNameMm())
-                                    .nameEn(item.getNameEn())
-                                    .price(item.getPrice())
-                                    .currency(item.getCurrency())
-                                    .imageUrl(item.getImageUrl())
-                                    .isAvailable(item.getIsAvailable())
-                                    .isPopular(item.getIsPopular())
-                                    .isVegetarian(item.getIsVegetarian())
-                                    .isSpicy(item.getIsSpicy())
-                                    .displayOrder(item.getDisplayOrder())
-                                    .build())
-                            .collect(Collectors.toList());
-
-                    return org.th.dto.MenuCategoryDTO.builder()
-                            .id(category.getId())
-                            .name(category.getName())
-                            .nameMm(category.getNameMm())
-                            .nameEn(category.getNameEn())
-                            .displayOrder(category.getDisplayOrder())
-                            .isActive(category.getIsActive())
-                            .items(itemDTOs)
-                            .build();
-                })
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Get shop by ID
      *
      * @param shopId Shop ID
      * @return Shop entity
      */
+
     @Transactional(readOnly = true)
     public Optional<Shop> getShopById(Long shopId) {
         // Use optimized queries to fetch details separately (to avoid
@@ -211,15 +173,14 @@ public class ShopService {
         // Hibernate cannot fetch multiple List collections in a single query
         Optional<Shop> shopOpt = shopRepository.findByIdWithDetails(shopId);
 
-        // If shop exists, fetch menu items and operating hours separately
         // If shop exists, fully initialize lazy collections for Caching/Controller use
         shopOpt.ifPresent(shop -> {
             // Only initialize critical data for the main view
-            if (shop.getOperatingHours() != null) {
-                shop.getOperatingHours().size(); // Initialize operating hours
-            }
             if (shop.getPhotos() != null) {
-                shop.getPhotos().size(); // Initialize photos
+                shop.getPhotos().size(); // Initialize photos (already fetched by findByIdWithDetails)
+            }
+            if (shop.getOperatingHours() != null) {
+                shop.getOperatingHours().size(); // Initialize operating hours (fetched by findByIdWithDetails)
             }
 
             // DECOUPLED: Menu and Reviews are NOT initialized here.
@@ -264,9 +225,6 @@ public class ShopService {
 
         // Initialize lazy collections
         if (shop != null) {
-            if (shop.getOperatingHours() != null) {
-                shop.getOperatingHours().size();
-            }
             if (shop.getPhotos() != null) {
                 shop.getPhotos().size();
             }
@@ -534,6 +492,69 @@ public class ShopService {
         return initializedResults;
     }
 
+    /**
+     * Combined search for shops, categories, and menu items
+     * 
+     * @param keyword Search keyword
+     * @return SearchResponseDTO containing combined results
+     */
+    public org.th.dto.SearchResponseDTO searchCombined(String keyword) {
+        logger.info("Performing combined search for: {}", keyword);
+
+        // 1. Search Shops
+        List<Shop> shops = searchShops(keyword);
+        List<org.th.dto.ShopListDTO> shopDTOs = shops.stream()
+                .map(this::convertToListDTO)
+                .collect(Collectors.toList());
+
+        // 2. Search Categories
+        List<org.th.dto.MenuCategoryDTO> categoryDTOs = menuCategoryService.searchMenuCategories(keyword);
+
+        // 3. Search Menu Items
+        List<org.th.entity.shops.MenuItem> menuItems = shopRepository.searchMenuItems(keyword);
+        List<org.th.dto.MenuItemDTO> menuDTOs = menuItems.stream()
+                .map(item -> {
+                    // Map photos
+                    List<org.th.dto.PhotoDTO> itemPhotos = item.getPhotos().stream()
+                            .map(photo -> org.th.dto.PhotoDTO.builder()
+                                    .id(photo.getId())
+                                    .url(photo.getUrl())
+                                    .thumbnailUrl(photo.getThumbnailUrl())
+                                    .photoType(photo.getPhotoType())
+                                    .caption(photo.getCaption())
+                                    .captionMm(photo.getCaptionMm())
+                                    .captionEn(photo.getCaptionEn())
+                                    .isPrimary(photo.getIsPrimary())
+                                    .displayOrder(photo.getDisplayOrder())
+                                    .uploadedAt(photo.getUploadedAt())
+                                    .build())
+                            .collect(Collectors.toList());
+
+                    return org.th.dto.MenuItemDTO.builder()
+                            .id(item.getId())
+                            .name(item.getName())
+                            .nameMm(item.getNameMm())
+                            .nameEn(item.getNameEn())
+                            .price(item.getPrice())
+                            .currency(item.getCurrency())
+                            .imageUrl(item.getImageUrl())
+                            .isAvailable(item.getIsAvailable())
+                            .isPopular(item.getIsPopular())
+                            .isVegetarian(item.getIsVegetarian())
+                            .isSpicy(item.getIsSpicy())
+                            .displayOrder(item.getDisplayOrder())
+                            .photos(itemPhotos)
+                            .build();
+                })
+                .collect(Collectors.toList());
+
+        return org.th.dto.SearchResponseDTO.builder()
+                .shops(shopDTOs)
+                .categories(categoryDTOs)
+                .menus(menuDTOs)
+                .build();
+    }
+
     // ==================== DTO MAPPING METHODS ====================
 
     /**
@@ -678,15 +699,20 @@ public class ShopService {
         }
 
         // Convert operating hours
-        List<org.th.dto.OperatingHourDTO> operatingHourDTOs = shop.getOperatingHours().stream()
-                .map(hour -> org.th.dto.OperatingHourDTO.builder()
-                        .id(hour.getId())
-                        .dayOfWeek(hour.getDayOfWeek())
-                        .openingTime(hour.getOpeningTime())
-                        .closingTime(hour.getClosingTime())
-                        .isClosed(hour.getIsClosed())
-                        .build())
-                .collect(Collectors.toList());
+        // Convert operating hours
+        List<org.th.dto.OperatingHourDTO> operatingHourDTOs = new java.util.ArrayList<>();
+        if (shop.getOperatingHours() != null) {
+            operatingHourDTOs = shop.getOperatingHours().stream()
+                    .sorted(java.util.Comparator.comparing(org.th.entity.shops.OperatingHour::getDayOfWeek))
+                    .map(hour -> org.th.dto.OperatingHourDTO.builder()
+                            .id(hour.getId())
+                            .dayOfWeek(hour.getDayOfWeek())
+                            .openingTime(hour.getOpeningTime())
+                            .closingTime(hour.getClosingTime())
+                            .isClosed(hour.getIsClosed())
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
         return org.th.dto.ShopDetailDTO.builder()
                 .id(shop.getId())
