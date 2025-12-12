@@ -198,8 +198,8 @@ public class ShopService {
      * @return ShopDetailDTO or empty
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "shopDetails", key = "#shopId")
-    public Optional<org.th.dto.ShopDetailDTO> getShopDetailsById(Long shopId) {
+    // Removed @Cacheable because response now depends on user location (ETA)
+    public Optional<org.th.dto.ShopDetailDTO> getShopDetailsById(Long shopId, Double lat, Double lon) {
         Optional<Shop> shopOpt = getShopById(shopId);
 
         if (shopOpt.isEmpty()) {
@@ -209,7 +209,8 @@ public class ShopService {
         Shop shop = shopOpt.get();
 
         // DECOUPLED: Pass empty list for reviews (fetched separately)
-        return Optional.of(convertToDetailDTO(shop, null));
+        // Pass lat/lon for ETA calculation
+        return Optional.of(convertToDetailDTO(shop, lat, lon));
     }
 
     /**
@@ -241,8 +242,8 @@ public class ShopService {
      * @return ShopDetailDTO or null
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "shopDetails", key = "#slug")
-    public org.th.dto.ShopDetailDTO getShopDetailsBySlug(String slug) {
+    // Removed @Cacheable because response now depends on user location (ETA)
+    public org.th.dto.ShopDetailDTO getShopDetailsBySlug(String slug, Double lat, Double lon) {
         Shop shop = getShopBySlug(slug);
 
         if (shop == null) {
@@ -250,7 +251,8 @@ public class ShopService {
         }
 
         // DECOUPLED: Pass empty list for reviews (fetched separately)
-        return convertToDetailDTO(shop, null);
+        // Pass lat/lon for ETA calculation
+        return convertToDetailDTO(shop, lat, lon);
     }
 
     /**
@@ -261,8 +263,8 @@ public class ShopService {
      * @return Slice of ShopListDTO (no total count)
      */
     @Transactional(readOnly = true)
-    @Cacheable(value = "homeShops", key = "#pageable.pageNumber", condition = "#pageable.pageNumber == 0")
-    public Slice<org.th.dto.ShopListDTO> getAllShops(Pageable pageable) {
+    // Removed @Cacheable because list now depends on user location for ETA
+    public Slice<org.th.dto.ShopListDTO> getAllShops(Pageable pageable, Double lat, Double lon) {
         logger.info("Fetching all shops slice: {}", pageable.getPageNumber());
 
         // 1. Fetch Slice of Shops (No Count Query)
@@ -292,11 +294,11 @@ public class ShopService {
             // Map the ORIGINAL slice (preserving order/metadata) using the LOADED entities
             return shopSlice.map(s -> {
                 Shop loaded = shopMap.getOrDefault(s.getId(), s);
-                return convertToListDTO(loaded);
+                return convertToListDTO(loaded, lat, lon);
             });
         }
 
-        return shopSlice.map(this::convertToListDTO);
+        return shopSlice.map(s -> convertToListDTO(s, lat, lon));
     }
 
     /**
@@ -421,6 +423,37 @@ public class ShopService {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return EARTH_RADIUS_KM * c;
+    }
+
+    /**
+     * Calculate ETA Range based on "Heavy Traffic Baseline"
+     * Assumes average speed of 15 km/h (Daytime Traffic)
+     * Provides a tight realistic range (approx +/- 15%)
+     * 
+     * @param distanceKm Distance in kilometers
+     * @return int[] {minMinutes, maxMinutes}
+     */
+    private int[] calculateEtaRangeV2(double distanceKm) {
+        // Base Speed: 15 km/h (Bangkok Heavy Traffic Average)
+        final double BASE_SPEED_KMH = 15.0;
+
+        // Calculate Base Time (minutes)
+        double baseMinutes = (distanceKm / BASE_SPEED_KMH) * 60;
+
+        // Apply Variance (+/- 15%)
+        // 5km -> 20 mins -> 17 - 23 mins (Gap: 6 mins)
+        // 2km -> 8 mins -> 7 - 9 mins
+
+        int minEta = (int) Math.ceil(baseMinutes * 0.85);
+        int maxEta = (int) Math.ceil(baseMinutes * 1.15);
+
+        // Safety adjustments
+        if (minEta < 1)
+            minEta = 1;
+        if (maxEta <= minEta)
+            maxEta = minEta + 3; // Ensure at least 3 min range
+
+        return new int[] { minEta, maxEta };
     }
 
     // ==================== SEARCH METHODS ====================
@@ -612,6 +645,37 @@ public class ShopService {
     }
 
     /**
+     * Convert Shop entity to ShopListDTO with Location/ETA
+     * 
+     * @param shop    Shop entity
+     * @param userLat User Latitude (nullable)
+     * @param userLon User Longitude (nullable)
+     * @return ShopListDTO with distance and ETA
+     */
+    public org.th.dto.ShopListDTO convertToListDTO(Shop shop, Double userLat, Double userLon) {
+        org.th.dto.ShopListDTO dto = convertToListDTO(shop);
+
+        if (dto != null && userLat != null && userLon != null
+                && shop.getLatitude() != null && shop.getLongitude() != null) {
+
+            double distance = calculateDistance(
+                    userLat, userLon,
+                    shop.getLatitude().doubleValue(), shop.getLongitude().doubleValue());
+            // Round to 1 decimal place
+            distance = Math.round(distance * 10.0) / 10.0;
+
+            int[] etaRange = calculateEtaRangeV2(distance);
+
+            dto.setDistance(distance);
+            dto.setMinEta(etaRange[0]);
+            dto.setMaxEta(etaRange[1]);
+            dto.setEstimatedTime(etaRange[0] + " - " + etaRange[1] + " min");
+        }
+
+        return dto;
+    }
+
+    /**
      * Convert Shop entity to ShopDetailDTO (complete view with relationships)
      * 
      * 
@@ -791,5 +855,31 @@ public class ShopService {
         }
 
         return convertToDetailDTO(shop, reviews);
+    }
+
+    /**
+     * Convert Shop entity to ShopDetailDTO with Location/ETA
+     */
+    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop, Double userLat, Double userLon) {
+        // Reuse basic conversion
+        org.th.dto.ShopDetailDTO dto = convertToDetailDTO(shop, null);
+
+        if (dto != null && userLat != null && userLon != null
+                && shop.getLatitude() != null && shop.getLongitude() != null) {
+
+            double distance = calculateDistance(
+                    userLat, userLon,
+                    shop.getLatitude().doubleValue(), shop.getLongitude().doubleValue());
+            distance = Math.round(distance * 10.0) / 10.0;
+
+            int[] etaRange = calculateEtaRangeV2(distance);
+
+            dto.setDistance(distance);
+            dto.setMinEta(etaRange[0]);
+            dto.setMaxEta(etaRange[1]);
+            dto.setEstimatedTime(etaRange[0] + " - " + etaRange[1] + " min");
+        }
+
+        return dto;
     }
 }

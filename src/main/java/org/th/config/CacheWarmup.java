@@ -25,7 +25,7 @@ public class CacheWarmup {
         try {
             // Warm up the 'homeShops' cache (Page 0)
             // This triggers the DB fetch and populates the cache
-            shopService.getAllShops(PageRequest.of(0, 20));
+            shopService.getAllShops(PageRequest.of(0, 20), null, null);
 
             long duration = System.currentTimeMillis() - start;
             logger.info("Cache Warm-up completed in {} ms. Home feed is now ready.", duration);

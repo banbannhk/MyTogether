@@ -361,3 +361,28 @@ RETURN min(score, 100.0)
 
 **Enums**:
 - `FeedSectionType.java`, `UserSegment.java`, `TimeContext.java`, `ShopBadge.java`
+
+---
+
+## 6. Shop ETA Calculation (Thailand Context)
+**Goal:** Provide a safe, realistic time range for travel in heavy traffic conditions (Bangkok context) without incurring external API costs.
+
+**Algorithm: "Heavy Traffic Baseline"**
+Instead of using standard average speeds (which are too optimistic for Bangkok), we assume a "Traffic Jam" baseline.
+
+**Formula:**
+- **Base Speed:** `15 km/h` (Average speed in heavy city traffic).
+- **Time Calculation:** `Time = (Distance / 15) * 60` minutes.
+- **Range Variance:** `+/- 15%` to account for red light luck or minor flow improvements.
+
+**Logic:**
+1.  **Min ETA:** `Base Time * 0.85`
+2.  **Max ETA:** `Base Time * 1.15`
+3.  **Safety:** Ensure `Max > Min` by at least 3 minutes.
+
+**Examples:**
+- **2 km:** ~8 mins baseline -> **7 - 9 min**
+- **5 km:** ~20 mins baseline -> **17 - 23 min**
+- **10 km:** ~40 mins baseline -> **34 - 46 min**
+
+*Note: This logic is intentionally pessimistic to ensure users are not disappointed by "10 min" promises that take 40 mins.*

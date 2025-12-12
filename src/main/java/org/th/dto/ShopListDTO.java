@@ -58,4 +58,8 @@ public class ShopListDTO {
     // Distance from user location (only populated for nearby searches)
     private Double distance;
 
+    // ETA fields
+    private Integer minEta;
+    private Integer maxEta;
+    private String estimatedTime; // Formatted "12 - 18 min"
 }

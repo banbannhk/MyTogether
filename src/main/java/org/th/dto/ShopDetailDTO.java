@@ -76,4 +76,9 @@ public class ShopDetailDTO {
 
     // Distance from user (optional)
     private Double distance;
+
+    // ETA fields
+    private Integer minEta;
+    private Integer maxEta;
+    private String estimatedTime;
 }
