@@ -25,19 +25,22 @@ public enum ActivityType {
     VIEW_NEARBY,
 
     /**
-     * User requested directions (future use)
+     * User requested directions
      */
     CLICK_DIRECTIONS,
 
     /**
-     * User clicked to call (future use)
-     */
-    /**
-     * User clicked to call (future use)
+     * User clicked call button
      */
     CLICK_CALL,
 
-    // Conversion Events (High Intent)
+    /**
+     * User clicked website button
+     */
     CLICK_WEBSITE,
+
+    /**
+     * User clicked share button
+     */
     CLICK_SHARE
 }

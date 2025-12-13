@@ -4,8 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import okhttp3.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,9 +19,9 @@ import java.util.UUID;
  * Service for managing file uploads to Supabase Storage
  */
 @Service
+@lombok.extern.slf4j.Slf4j
 public class SupabaseStorageService {
 
-    private static final Logger logger = LoggerFactory.getLogger(SupabaseStorageService.class);
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
             "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif");
@@ -73,16 +71,16 @@ public class SupabaseStorageService {
             try (Response response = okHttpClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "Unknown error";
-                    logger.error("Failed to upload file to Supabase: {} - {}", response.code(), errorBody);
+                    log.error("Failed to upload file to Supabase: {} - {}", response.code(), errorBody);
                     throw new SupabaseStorageException("Failed to upload file: " + errorBody);
                 }
 
-                logger.info("Successfully uploaded file to Supabase: {}", filePath);
+                log.info("Successfully uploaded file to Supabase: {}", filePath);
                 return getPublicUrl(filePath);
             }
 
         } catch (IOException e) {
-            logger.error("Error uploading file to Supabase", e);
+            log.error("Error uploading file to Supabase", e);
             throw new SupabaseStorageException("Error uploading file", e);
         }
     }
@@ -121,15 +119,15 @@ public class SupabaseStorageService {
             try (Response response = okHttpClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "Unknown error";
-                    logger.error("Failed to delete file from Supabase: {} - {}", response.code(), errorBody);
+                    log.error("Failed to delete file from Supabase: {} - {}", response.code(), errorBody);
                     throw new SupabaseStorageException("Failed to delete file: " + errorBody);
                 }
 
-                logger.info("Successfully deleted file from Supabase: {}", filePath);
+                log.info("Successfully deleted file from Supabase: {}", filePath);
             }
 
         } catch (IOException e) {
-            logger.error("Error deleting file from Supabase", e);
+            log.error("Error deleting file from Supabase", e);
             throw new SupabaseStorageException("Error deleting file", e);
         }
     }
@@ -164,7 +162,7 @@ public class SupabaseStorageService {
             try (Response response = okHttpClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "Unknown error";
-                    logger.error("Failed to list files from Supabase: {} - {}", response.code(), errorBody);
+                    log.error("Failed to list files from Supabase: {} - {}", response.code(), errorBody);
                     throw new SupabaseStorageException("Failed to list files: " + errorBody);
                 }
 
@@ -184,7 +182,7 @@ public class SupabaseStorageService {
             }
 
         } catch (IOException e) {
-            logger.error("Error listing files from Supabase", e);
+            log.error("Error listing files from Supabase", e);
             throw new SupabaseStorageException("Error listing files", e);
         }
     }

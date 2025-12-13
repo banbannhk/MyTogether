@@ -1,4 +1,4 @@
-package org.th.controller;
+package org.th.controller.admin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -8,7 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.th.dto.ApiResponse;
-import org.th.service.ExcelImportService;
+import org.th.service.admin.ExcelImportService;
 
 import java.util.HashMap;
 import java.util.Map;

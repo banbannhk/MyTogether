@@ -1,10 +1,10 @@
 package org.th.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.th.entity.shops.Shop;
+import org.th.entity.shops.ShopReview;
 import org.th.repository.ShopRepository;
 
 import org.springframework.cache.annotation.Caching;
@@ -20,15 +20,12 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional
+@lombok.extern.slf4j.Slf4j
 public class ShopService {
-
-    private static final Logger logger = LoggerFactory.getLogger(ShopService.class);
 
     @Autowired
     private ShopRepository shopRepository;
-
-    @Autowired
-    private org.th.repository.ReviewRepository reviewRepository;
 
     @Autowired
     private org.th.service.MenuCategoryService menuCategoryService;
@@ -59,7 +56,7 @@ public class ShopService {
      * @return List of shops with photos fully loaded
      */
     public List<Shop> getNearbyShops(Double userLatitude, Double userLongitude, Double radiusInKm) {
-        logger.info("Searching for shops near [{}, {}] within {} km", userLatitude, userLongitude, radiusInKm);
+        log.info("Searching for shops near [{}, {}] within {} km", userLatitude, userLongitude, radiusInKm);
 
         // Validate and normalize radius
         Double radius = normalizeRadius(radiusInKm);
@@ -70,7 +67,7 @@ public class ShopService {
         // Fetch with photos to be safe for DTO conversion
         List<Shop> initializedShops = fetchWithPhotos(nearbyShops);
 
-        logger.info("Found {} shops within {} km", initializedShops.size(), radius);
+        log.info("Found {} shops within {} km", initializedShops.size(), radius);
         return initializedShops;
     }
 
@@ -94,7 +91,7 @@ public class ShopService {
      */
     public List<Shop> getNearbyShopsByCategory(Double userLatitude, Double userLongitude,
             Double radiusInKm, String category) {
-        logger.info("Searching for {} shops near [{}, {}] within {} km",
+        log.info("Searching for {} shops near [{}, {}] within {} km",
                 category, userLatitude, userLongitude, radiusInKm);
 
         Double radius = normalizeRadius(radiusInKm);
@@ -105,7 +102,7 @@ public class ShopService {
         // Fetch with photos
         List<Shop> initializedShops = fetchWithPhotos(nearbyShops);
 
-        logger.info("Found {} {} shops within {} km", initializedShops.size(), category, radius);
+        log.info("Found {} {} shops within {} km", initializedShops.size(), category, radius);
         return initializedShops;
     }
 
@@ -118,7 +115,7 @@ public class ShopService {
      * @return List of verified nearby shops
      */
     public List<Shop> getNearbyVerifiedShops(Double userLatitude, Double userLongitude, Double radiusInKm) {
-        logger.info("Searching for verified shops near [{}, {}] within {} km",
+        log.info("Searching for verified shops near [{}, {}] within {} km",
                 userLatitude, userLongitude, radiusInKm);
 
         List<Shop> nearbyShops = getNearbyShops(userLatitude, userLongitude, radiusInKm);
@@ -128,7 +125,7 @@ public class ShopService {
                 .filter(Shop::getIsVerified)
                 .collect(Collectors.toList());
 
-        logger.info("Found {} verified shops out of {} total shops",
+        log.info("Found {} verified shops out of {} total shops",
                 verifiedShops.size(), nearbyShops.size());
         return verifiedShops;
     }
@@ -144,7 +141,7 @@ public class ShopService {
      */
     public List<Shop> getNearbyShopsByRating(Double userLatitude, Double userLongitude,
             Double radiusInKm, Double minRating) {
-        logger.info("Searching for shops with rating >= {} near [{}, {}] within {} km",
+        log.info("Searching for shops with rating >= {} near [{}, {}] within {} km",
                 minRating, userLatitude, userLongitude, radiusInKm);
 
         Double radius = normalizeRadius(radiusInKm);
@@ -155,7 +152,7 @@ public class ShopService {
         // Fetch with photos
         List<Shop> initializedShops = fetchWithPhotos(ratedShops);
 
-        logger.info("Found {} shops with rating >= {}", initializedShops.size(), minRating);
+        log.info("Found {} shops with rating >= {}", initializedShops.size(), minRating);
         return initializedShops;
     }
 
@@ -221,7 +218,7 @@ public class ShopService {
      */
     // removed @Cacheable - we cache the DTO instead in getShopDetailsBySlug
     public Shop getShopBySlug(String slug) {
-        logger.info("Fetching shop with slug: {}", slug);
+        log.info("Fetching shop with slug: {}", slug);
         Shop shop = shopRepository.findBySlug(slug);
 
         // Initialize lazy collections
@@ -265,7 +262,7 @@ public class ShopService {
     @Transactional(readOnly = true)
     // Removed @Cacheable because list now depends on user location for ETA
     public Slice<org.th.dto.ShopListDTO> getAllShops(Pageable pageable, Double lat, Double lon) {
-        logger.info("Fetching all shops slice: {}", pageable.getPageNumber());
+        log.info("Fetching all shops slice: {}", pageable.getPageNumber());
 
         // 1. Fetch Slice of Shops (No Count Query)
         Slice<Shop> shopSlice = shopRepository.findByIsActiveTrue(pageable);
@@ -307,7 +304,7 @@ public class ShopService {
      * @return List of all shops
      */
     public List<Shop> getAllShops() {
-        logger.info("Fetching all shops");
+        log.info("Fetching all shops");
         return shopRepository.findAll();
     }
 
@@ -319,7 +316,7 @@ public class ShopService {
      */
     @Cacheable("shopsByCategory")
     public List<Shop> getShopsByCategory(String category) {
-        logger.info("Fetching all shops in category: {}", category);
+        log.info("Fetching all shops in category: {}", category);
         List<Shop> shops = shopRepository.findByCategoryOrderByRatingAvgDesc(category);
 
         // Fetch with photos
@@ -334,7 +331,7 @@ public class ShopService {
      * @return List of verified shops
      */
     public List<Shop> getVerifiedShops() {
-        logger.info("Fetching all verified shops");
+        log.info("Fetching all verified shops");
         return shopRepository.findByIsActiveTrueAndIsVerifiedTrue();
     }
 
@@ -346,7 +343,7 @@ public class ShopService {
      */
     @Cacheable("shopsByTownship")
     public List<Shop> getShopsByTownship(String township) {
-        logger.info("Fetching shops in township: {}", township);
+        log.info("Fetching shops in township: {}", township);
         return shopRepository.findByTownship(township);
     }
 
@@ -362,7 +359,7 @@ public class ShopService {
             @CacheEvict(value = "shopDetails", key = "#shop.slug")
     })
     public Shop saveShop(Shop shop) {
-        logger.info("Saving shop: {}", shop.getName());
+        log.info("Saving shop: {}", shop.getName());
         return shopRepository.save(shop);
     }
 
@@ -376,7 +373,7 @@ public class ShopService {
             @CacheEvict(value = "shopDetails", allEntries = true)
     })
     public void deleteShop(Long shopId) {
-        logger.info("Deleting shop with ID: {}", shopId);
+        log.info("Deleting shop with ID: {}", shopId);
         shopRepository.deleteById(shopId);
     }
 
@@ -388,12 +385,12 @@ public class ShopService {
      */
     private Double normalizeRadius(Double radiusInKm) {
         if (radiusInKm == null || radiusInKm <= 0) {
-            logger.debug("Invalid radius {}, using default {} km", radiusInKm, DEFAULT_RADIUS_KM);
+            log.debug("Invalid radius {}, using default {} km", radiusInKm, DEFAULT_RADIUS_KM);
             return DEFAULT_RADIUS_KM;
         }
 
         if (radiusInKm > MAX_RADIUS_KM) {
-            logger.debug("Radius {} exceeds maximum, capping at {} km", radiusInKm, MAX_RADIUS_KM);
+            log.debug("Radius {} exceeds maximum, capping at {} km", radiusInKm, MAX_RADIUS_KM);
             return MAX_RADIUS_KM;
         }
 
@@ -465,13 +462,13 @@ public class ShopService {
      * @return List of shops matching the keyword
      */
     public List<Shop> searchShops(String keyword) {
-        logger.info("Searching shops with keyword: {}", keyword);
+        log.info("Searching shops with keyword: {}", keyword);
         // 1. Standard Search (Exact/Like)
         List<Shop> results = shopRepository.searchShops(keyword);
 
         // 2. Fuzzy Fallback (if few results)
         if (results.size() < 3) {
-            logger.info("Few results found ({}). Attempting fuzzy search for: {}", results.size(), keyword);
+            log.info("Few results found ({}). Attempting fuzzy search for: {}", results.size(), keyword);
             try {
                 List<Shop> fuzzyResults = shopRepository.findShopsFuzzy(keyword);
 
@@ -483,13 +480,13 @@ public class ShopService {
                 }
             } catch (Exception e) {
                 // Graceful fallback if pg_trgm is not enabled or other DB error
-                logger.warn("Fuzzy search failed (likely missing pg_trgm extension): {}", e.getMessage());
+                log.warn("Fuzzy search failed (likely missing pg_trgm extension): {}", e.getMessage());
             }
         }
 
         List<Shop> initializedResults = fetchWithPhotos(results);
 
-        logger.info("Found {} shops matching '{}'", initializedResults.size(), keyword);
+        log.info("Found {} shops matching '{}'", initializedResults.size(), keyword);
         return initializedResults;
     }
 
@@ -500,12 +497,12 @@ public class ShopService {
      * @return List of shops matching the name
      */
     public List<Shop> searchByShopName(String name) {
-        logger.info("Searching shops by name: {}", name);
+        log.info("Searching shops by name: {}", name);
         List<Shop> results = shopRepository.searchByShopName(name);
 
         List<Shop> initializedResults = fetchWithPhotos(results);
 
-        logger.info("Found {} shops matching name '{}'", initializedResults.size(), name);
+        log.info("Found {} shops matching name '{}'", initializedResults.size(), name);
         return initializedResults;
     }
 
@@ -516,12 +513,12 @@ public class ShopService {
      * @return List of shops that have the matching food item
      */
     public List<Shop> searchByFoodName(String foodName) {
-        logger.info("Searching shops by food name: {}", foodName);
+        log.info("Searching shops by food name: {}", foodName);
         List<Shop> results = shopRepository.searchByMenuItemName(foodName);
 
         List<Shop> initializedResults = fetchWithPhotos(results);
 
-        logger.info("Found {} shops with food matching '{}'", initializedResults.size(), foodName);
+        log.info("Found {} shops with food matching '{}'", initializedResults.size(), foodName);
         return initializedResults;
     }
 
@@ -532,7 +529,7 @@ public class ShopService {
      * @return SearchResponseDTO containing combined results
      */
     public org.th.dto.SearchResponseDTO searchCombined(String keyword) {
-        logger.info("Performing combined search for: {}", keyword);
+        log.info("Performing combined search for: {}", keyword);
 
         // 1. Search Shops
         List<Shop> shops = searchShops(keyword);
@@ -613,7 +610,7 @@ public class ShopService {
             }
         } catch (Exception e) {
             // Log warning but proceed (graceful degradation)
-            logger.warn("Could not access photos for shop {}: {}", shop.getId(), e.getMessage());
+            log.warn("Could not access photos for shop {}: {}", shop.getId(), e.getMessage());
         }
 
         return org.th.dto.ShopListDTO.builder()
@@ -676,17 +673,13 @@ public class ShopService {
     }
 
     /**
-     * Convert Shop entity to ShopDetailDTO (complete view with relationships)
-     * 
-     * 
-     * /**
-     * Convert Shop entity to ShopDetailDTO with specific reviews
+     * Convert to DetailDTO (with reviews)
      * 
      * @param shop       Shop entity
      * @param topReviews List of reviews to include
      * @return ShopDetailDTO
      */
-    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop, List<org.th.entity.shops.Review> topReviews) {
+    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop, List<ShopReview> topReviews) {
         if (shop == null) {
             return null;
         }
@@ -840,7 +833,8 @@ public class ShopService {
         // exception?
         // Actually, let's just use the strict limited list from the entity
 
-        List<org.th.entity.shops.Review> reviews = java.util.Collections.emptyList();
+        List<ShopReview> reviews = java.util.Collections.emptyList();
+
         try {
             if (shop.getReviews() != null) {
                 reviews = shop.getReviews().stream()
@@ -851,7 +845,7 @@ public class ShopService {
             }
         } catch (Exception e) {
             // LazyInit or similar
-            logger.warn("Could not load reviews for convertToDetailDTO: {}", e.getMessage());
+            log.warn("Could not load reviews for convertToDetailDTO: {}", e.getMessage());
         }
 
         return convertToDetailDTO(shop, reviews);

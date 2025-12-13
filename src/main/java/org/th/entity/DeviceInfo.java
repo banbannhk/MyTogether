@@ -27,7 +27,7 @@ public class DeviceInfo {
     private String deviceId;
 
     @Column(name = "device_type", length = 20)
-    private String deviceType;  // MOBILE, WEB, TABLET
+    private String deviceType; // MOBILE, WEB, TABLET
 
     @Column(name = "device_model", length = 100)
     private String deviceModel;
@@ -84,9 +84,6 @@ public class DeviceInfo {
 
     @OneToMany(mappedBy = "deviceInfo", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RefreshToken> refreshTokens = new ArrayList<>();
-
-    @OneToMany(mappedBy = "deviceInfo", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<RouteUsage> routeUsage = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

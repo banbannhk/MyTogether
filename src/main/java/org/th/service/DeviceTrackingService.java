@@ -1,141 +1,18 @@
+
 // File: src/main/java/org/th/service/DeviceTrackingService.java
 package org.th.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import org.th.config.DeviceLockManager;
-import org.th.dto.RouteDetailsHelper;
-import org.th.entity.DeviceInfo;
-import org.th.entity.RouteUsage;
-import org.th.repository.DeviceInfoRepository;
-import org.th.repository.RouteUsageRepository;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
+import org.springframework.stereotype.Service;
+import org.th.entity.DeviceInfo;
+
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
+@lombok.extern.slf4j.Slf4j
 public class DeviceTrackingService {
-
-    private static final Logger logger = LoggerFactory.getLogger(DeviceTrackingService.class);
-
-    @Autowired
-    private DeviceInfoRepository deviceInfoRepository;
-
-    @Autowired
-    private RouteUsageRepository routeUsageRepository;
-
-    @Autowired
-    private DeviceLockManager deviceLockManager;
-
-    /**
-     * ASYNC: Track device and route in background thread
-     * Returns immediately with deviceId
-     */
-    @Async("trackingExecutor")
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void trackDeviceAndRouteAsync(String deviceId, String origin, String destination,
-                                         String routeType,String ipAddress, String userAgent, JsonNode routeData) {
-
-        // Get lock for this specific device
-        ReentrantLock lock = deviceLockManager.getLock(deviceId);
-
-        // Use try-with-resources pattern with LockResource
-        int LOCK_TIMEOUT_SECONDS = 10;
-        try (LockResource lockResource = new LockResource(lock, deviceId, LOCK_TIMEOUT_SECONDS)) {
-
-            if (!lockResource.isAcquired()) {
-                logger.warn("⚠️ Could not acquire lock for device {} within {} seconds",
-                        deviceId, LOCK_TIMEOUT_SECONDS);
-                throw new RuntimeException("Could not acquire lock for device tracking");
-            }
-
-            RouteDetailsHelper details = new RouteDetailsHelper(routeData);
-            details.setRouteType(routeType);
-
-            logger.info("🔒 [LOCKED] Thread {} acquired lock for device {}",
-                    Thread.currentThread().getName(), deviceId);
-
-            // ===== CRITICAL SECTION (Protected by lock) =====
-
-            // 1. Save/Update device info
-            DeviceInfo deviceInfo = trackOrUpdateDevice(deviceId, ipAddress, userAgent);
-
-            // 2. Save route usage
-            RouteUsage routeUsage = new RouteUsage();
-            routeUsage.setDeviceInfo(new DeviceInfo());
-            routeUsage.setOrigin(origin);
-            routeUsage.setDestination(destination);
-            routeUsage.setRouteType(routeType);
-            routeUsage.setTransitMode(details.getTransitMode());
-            routeUsage.setDistanceKm(details.getDistanceKm());
-            routeUsage.setDurationMinutes(details.getDurationMinutes());
-            routeUsage.setFareAmount(details.getFareAmount());
-            routeUsage.setIpAddress(ipAddress);
-
-            routeUsageRepository.save(routeUsage);
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("❌ Thread interrupted while waiting for lock: {}", deviceId, e);
-            throw new RuntimeException("Thread interrupted during device tracking", e);
-
-        } catch (Exception e) {
-            logger.error("❌ Error saving device and route for device {}: {}",
-                    deviceId, e.getMessage(), e);
-            throw new RuntimeException("Failed to save device and route", e);
-        }
-    }
-
-    /**
-     * SYNC: Track device (use when you need immediate response with deviceId)
-     */
-//    public DeviceInfo trackOrUpdateDevice(String deviceId, String ipAddress, String userAgent) {
-//        return trackOrUpdateDeviceInternal(deviceId, ipAddress, userAgent);
-//    }
-
-    /**
-     * Internal method to track/update device
-     */
-    private DeviceInfo trackOrUpdateDevice(String deviceId, String ipAddress, String userAgent) {
-
-        logger.info("START :: trackOrUpdateDevice(String deviceId : {}, String ipAddress : {}, String userAgent : {})",
-                deviceId, ipAddress, userAgent);
-        try {
-            // Check if device exists
-            Optional<DeviceInfo> existingDevice = deviceInfoRepository.findByDeviceId(deviceId);
-
-            DeviceInfo deviceInfo;
-            if (existingDevice.isPresent()) {
-                // Update existing device
-                deviceInfo = existingDevice.get();
-                deviceInfo.setLastSeen(LocalDateTime.now());
-            } else {
-                // Create new device
-                deviceInfo = new DeviceInfo();
-                deviceInfo.setDeviceId(deviceId);
-            }
-
-            deviceInfo.setUserAgent(userAgent);
-            deviceInfo.setIpAddress(ipAddress);
-
-            // Parse user agent
-            parseUserAgent(userAgent, deviceInfo);
-
-            return deviceInfoRepository.save(deviceInfo);
-        } finally {
-            logger.info("END :: trackOrUpdateDevice(String deviceId : {}, String ipAddress : {}, String userAgent : {})",
-                    deviceId, ipAddress, userAgent);
-        }
-    }
 
     /**
      * Get client IP address
@@ -197,74 +74,6 @@ public class DeviceTrackingService {
             deviceInfo.setBrowserName("Firefox");
         } else if (ua.contains("edg")) {
             deviceInfo.setBrowserName("Edge");
-        }
-    }
-
-    /**
-     * ASYNC: Track token refresh
-     */
-    @Async("trackingExecutor")
-    public void trackTokenRefreshAsync(String deviceId, String refreshToken) {
-        try {
-            Optional<DeviceInfo> deviceOpt = deviceInfoRepository.findByDeviceId(deviceId);
-
-            if (deviceOpt.isPresent()) {
-                DeviceInfo deviceInfo = deviceOpt.get();
-                deviceInfo.setLastSeen(LocalDateTime.now());
-                deviceInfoRepository.save(deviceInfo);
-
-                logger.info("✅ [ASYNC] Token refresh tracked for device {}", deviceId);
-            }
-        } catch (Exception e) {
-            logger.error("❌ [ASYNC] Error tracking token refresh: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Link device to user
-     */
-    @Transactional
-    public void linkDeviceToUser(String deviceId, Long userId) {
-        Optional<DeviceInfo> deviceOpt = deviceInfoRepository.findByDeviceId(deviceId);
-
-        if (deviceOpt.isPresent()) {
-            DeviceInfo deviceInfo = deviceOpt.get();
-            //deviceInfo.setCurrentUserId(userId);
-            deviceInfoRepository.save(deviceInfo);
-            logger.info("✅ Device {} linked to user {}", deviceId, userId);
-        }
-    }
-
-    /**
-     * AutoCloseable wrapper for ReentrantLock
-     * Ensures lock is ALWAYS released, even if exception occurs
-     */
-    private static class LockResource implements AutoCloseable {
-
-        private final ReentrantLock lock;
-        private final String deviceId;
-        private boolean acquired = false;
-
-        public LockResource(ReentrantLock lock, String deviceId, int timeoutSeconds)
-                throws InterruptedException {
-            this.lock = lock;
-            this.deviceId = deviceId;
-
-            // Try to acquire lock with timeout
-            this.acquired = lock.tryLock(timeoutSeconds, TimeUnit.SECONDS);
-        }
-
-        public boolean isAcquired() {
-            return acquired;
-        }
-
-        @Override
-        public void close() {
-            if (acquired && lock.isHeldByCurrentThread()) {
-                lock.unlock();
-                logger.info("🔓 [UNLOCKED] Thread {} released lock for device {}",
-                                Thread.currentThread().getName(), deviceId);
-            }
         }
     }
 }

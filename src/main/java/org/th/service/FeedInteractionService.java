@@ -1,8 +1,6 @@
 package org.th.service;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -25,9 +23,8 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class FeedInteractionService {
-
-    private static final Logger logger = LoggerFactory.getLogger(FeedInteractionService.class);
 
     private final FeedInteractionRepository feedInteractionRepository;
 
@@ -63,10 +60,10 @@ public class FeedInteractionService {
             }
 
             feedInteractionRepository.saveAll(interactions);
-            logger.debug("Tracked {} feed views for section {}", interactions.size(), sectionType);
+            log.debug("Tracked {} feed views for section {}", interactions.size(), sectionType);
 
         } catch (Exception e) {
-            logger.error("Failed to track feed view: {}", e.getMessage());
+            log.error("Failed to track feed view: {}", e.getMessage());
         }
     }
 
@@ -91,11 +88,11 @@ public class FeedInteractionService {
                     .build();
 
             feedInteractionRepository.save(interaction);
-            logger.debug("Tracked shop click: {} from section {} at position {}",
+            log.debug("Tracked shop click: {} from section {} at position {}",
                     shopId, sectionType, position);
 
         } catch (Exception e) {
-            logger.error("Failed to track shop click: {}", e.getMessage());
+            log.error("Failed to track shop click: {}", e.getMessage());
         }
     }
 

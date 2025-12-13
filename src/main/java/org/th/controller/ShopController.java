@@ -74,8 +74,8 @@ public class ShopController {
         @Operation(summary = "Get shop details", description = "Get complete shop information including menu, reviews, and operating hours")
         public ResponseEntity<ApiResponse<ShopDetailDTO>> getShopById(
                         @Parameter(description = "Shop ID") @PathVariable Long id,
-                        @Parameter(description = "User's latitude") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude") @RequestParam(required = false) Double lon,
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon,
                         HttpServletRequest request) {
 
                 Optional<ShopDetailDTO> shopDetailOpt = shopService.getShopDetailsById(id, lat, lon);
@@ -119,8 +119,8 @@ public class ShopController {
         @Operation(summary = "Get shop by slug", description = "Get shop details using URL-friendly slug")
         public ResponseEntity<ApiResponse<ShopDetailDTO>> getShopBySlug(
                         @Parameter(description = "Shop Slug") @PathVariable String slug,
-                        @Parameter(description = "User's latitude") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude") @RequestParam(required = false) Double lon,
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon,
                         HttpServletRequest request) {
 
                 ShopDetailDTO shop = shopService.getShopDetailsBySlug(slug, lat, lon);
@@ -153,44 +153,6 @@ public class ShopController {
         }
 
         /**
-         * Get shops by category (with optional location filtering)
-         */
-        @GetMapping("/category/{category}")
-        @RateLimit(tier = Tier.CPU_INTENSIVE)
-        @Operation(summary = "Get shops by category", description = "Find shops in a specific category, optionally filtered by location")
-        public ResponseEntity<ApiResponse<List<ShopListDTO>>> getShopsByCategory(
-                        @Parameter(description = "Shop category") @PathVariable String category,
-                        @Parameter(description = "User's latitude (optional)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional)") @RequestParam(required = false) Double lon,
-                        @Parameter(description = "Search radius in kilometers") @RequestParam(required = false, defaultValue = "10.0") Double radius,
-                        HttpServletRequest request) {
-
-                // Log activity
-                userActivityService.logActivity(
-                                ActivityType.VIEW_CATEGORY,
-                                null, null, category, lat, lon,
-                                null, request);
-
-                List<Shop> shops;
-
-                // If location provided, search nearby with category filter
-                if (lat != null && lon != null) {
-                        shops = shopService.getNearbyShopsByCategory(lat, lon, radius, category);
-                } else {
-                        // Otherwise, get all shops in category
-                        shops = shopService.getShopsByCategory(category);
-                }
-
-                List<ShopListDTO> shopDTOs = shops.stream()
-                                .map(shopService::convertToListDTO)
-                                .collect(Collectors.toList());
-
-                return ResponseEntity.ok(ApiResponse.success(
-                                "Found " + shops.size() + " " + category + " shops",
-                                shopDTOs));
-        }
-
-        /**
          * Universal search - searches shop names and food items
          */
         @GetMapping("/search")
@@ -198,8 +160,8 @@ public class ShopController {
         @Operation(summary = "Search shops", description = "Search shops by name or food/menu items (supports Myanmar and English)")
         public ResponseEntity<ApiResponse<org.th.dto.SearchResponseDTO>> searchShops(
                         @Parameter(description = "Search keyword") @RequestParam String q,
-                        @Parameter(description = "User's latitude (optional for distance calculation)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional for distance calculation)") @RequestParam(required = false) Double lon,
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon,
                         HttpServletRequest request) {
 
                 // Log activity
@@ -239,68 +201,12 @@ public class ShopController {
                                 results));
         }
 
-        /**
-         * Search shops by shop name only
-         */
-        @GetMapping("/search/name")
-        @RateLimit(tier = Tier.MODERATE)
-        @Operation(summary = "Search by shop name", description = "Search shops by name only (excludes menu items)")
-        public ResponseEntity<ApiResponse<List<ShopListDTO>>> searchByShopName(
-                        @Parameter(description = "Shop name keyword") @RequestParam String name,
-                        @Parameter(description = "User's latitude (optional)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional)") @RequestParam(required = false) Double lon,
-                        HttpServletRequest request) {
-
-                // Log activity
-                userActivityService.logActivity(
-                                ActivityType.SEARCH_QUERY,
-                                name, null, null, lat, lon,
-                                "type=shop_name", request);
-
-                List<Shop> shops = shopService.searchByShopName(name);
-                List<ShopListDTO> shopDTOs = shops.stream()
-                                .map(s -> shopService.convertToListDTO(s, lat, lon))
-                                .collect(Collectors.toList());
-
-                return ResponseEntity.ok(ApiResponse.success(
-                                "Found " + shops.size() + " shops",
-                                shopDTOs));
-        }
-
-        /**
-         * Search shops by food/menu item name
-         */
-        @GetMapping("/search/food")
-        @RateLimit(tier = Tier.MODERATE)
-        @Operation(summary = "Search by food name", description = "Find shops that serve a specific food or menu item")
-        public ResponseEntity<ApiResponse<List<ShopListDTO>>> searchByFoodName(
-                        @Parameter(description = "Food/menu item name") @RequestParam String food,
-                        @Parameter(description = "User's latitude (optional)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional)") @RequestParam(required = false) Double lon,
-                        HttpServletRequest request) {
-
-                // Log activity
-                userActivityService.logActivity(
-                                ActivityType.SEARCH_QUERY,
-                                food, null, null, lat, lon,
-                                "type=food_name", request);
-
-                List<Shop> shops = shopService.searchByFoodName(food);
-                List<ShopListDTO> shopDTOs = shops.stream()
-                                .map(s -> shopService.convertToListDTO(s, lat, lon))
-                                .collect(Collectors.toList());
-
-                return ResponseEntity.ok(ApiResponse.success(
-                                "Found " + shops.size() + " shops serving '" + food + "'",
-                                shopDTOs));
-        }
-
         @GetMapping("/trending")
         @RateLimit(tier = RateLimit.Tier.PUBLIC)
         @Operation(summary = "Get trending shops", description = "Get top 10 trending shops based on recent activity")
         public ResponseEntity<ApiResponse<List<ShopListDTO>>> getTrendingShops(
-                        @Parameter(description = "User's latitude (optional)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional)") @RequestParam(required = false) Double lon,
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon,
                         HttpServletRequest request) {
 
                 // Optional: Log viewing trending page
@@ -316,30 +222,16 @@ public class ShopController {
                 return ResponseEntity.ok(ApiResponse.success("Trending shops retrieved", dtos));
         }
 
-        @GetMapping("/townships")
-        @RateLimit(tier = RateLimit.Tier.PUBLIC)
-        @Operation(summary = "Explore by township", description = "Get shop counts by township/district")
-        public ResponseEntity<ApiResponse<List<LocationCountDTO>>> getTownshipCounts() {
-                List<LocationCountDTO> counts = shopRepository.countShopsByTownship();
-                return ResponseEntity.ok(ApiResponse.success("Township counts retrieved", counts));
-        }
-
         @GetMapping("/foryou")
         @RateLimit(tier = RateLimit.Tier.MODERATE)
         @Operation(summary = "Personalized recommendations", description = "Get recommended shops based on user history or device activity")
         public ResponseEntity<ApiResponse<List<ShopListDTO>>> getRecommendations(
-                        @Parameter(description = "User's latitude (optional)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional)") @RequestParam(required = false) Double lon,
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon,
                         HttpServletRequest request) { // Inject Request to get headers
 
                 org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
                                 .getContext().getAuthentication();
-
-                // Log activity (Viewing For You Feed)
-                userActivityService.logActivity(
-                                ActivityType.VIEW_CATEGORY,
-                                null, null, "For You", lat, lon,
-                                null, request);
 
                 String username = null;
                 boolean isAuthenticated = auth != null && auth.isAuthenticated()
@@ -377,8 +269,8 @@ public class ShopController {
         public ResponseEntity<ApiResponse<Void>> trackConversion(
                         @Parameter(description = "Shop ID") @PathVariable Long id,
                         @Parameter(description = "Action type (DIRECTIONS, CALL, WEBSITE, SHARE)") @RequestParam String action,
-                        @Parameter(description = "User's latitude (optional)") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude (optional)") @RequestParam(required = false) Double lon,
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon,
                         HttpServletRequest request) {
 
                 ActivityType type;
@@ -405,8 +297,8 @@ public class ShopController {
         public ResponseEntity<ApiResponse<org.springframework.data.domain.Slice<ShopListDTO>>> getAllShops(
                         @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
                         @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size,
-                        @Parameter(description = "User's latitude") @RequestParam(required = false) Double lat,
-                        @Parameter(description = "User's longitude") @RequestParam(required = false) Double lon) {
+                        @Parameter(description = "User's latitude") @RequestParam Double lat,
+                        @Parameter(description = "User's longitude") @RequestParam Double lon) {
 
                 org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
                                 size);

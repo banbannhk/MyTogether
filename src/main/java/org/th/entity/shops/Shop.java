@@ -129,7 +129,7 @@ public class Shop {
 
     @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Review> reviews = new ArrayList<>();
+    private List<ShopReview> reviews = new ArrayList<>();
 
     @ToString.Exclude
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)

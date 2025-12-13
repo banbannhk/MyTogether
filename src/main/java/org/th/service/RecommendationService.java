@@ -5,11 +5,11 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.th.entity.shops.Favorite;
-import org.th.entity.shops.Review;
 import org.th.entity.shops.Shop;
+import org.th.entity.shops.ShopReview;
 import org.th.repository.FavoriteRepository;
-import org.th.repository.ReviewRepository;
 import org.th.repository.ShopRepository;
+import org.th.repository.ShopReviewRepository;
 import org.th.repository.UserRepository;
 import org.th.entity.User;
 
@@ -25,7 +25,7 @@ public class RecommendationService {
 
     private final ShopRepository shopRepository;
     private final FavoriteRepository favoriteRepository;
-    private final ReviewRepository reviewRepository;
+    private final ShopReviewRepository shopReviewRepository;
     private final UserRepository userRepository;
     private final org.th.repository.UserActivityRepository userActivityRepository;
 
@@ -67,7 +67,7 @@ public class RecommendationService {
                 preferredCategories.add(f.getShop().getCategory());
             });
 
-            List<Review> reviews = reviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            List<ShopReview> reviews = shopReviewRepository.findByUserIdOrderByCreatedAtDesc(userId);
             reviews.forEach(r -> {
                 excludedIds.add(r.getShop().getId()); // Don't recommend what they already reviewed
                 if (r.getRating() >= 3)

@@ -1,8 +1,7 @@
 package org.th.service;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.th.dto.ShopListDTO;
@@ -17,9 +16,8 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FavoriteService {
-
-    private static final Logger logger = LoggerFactory.getLogger(FavoriteService.class);
 
     private final FavoriteRepository favoriteRepository;
     private final ShopRepository shopRepository;
@@ -29,7 +27,7 @@ public class FavoriteService {
      * Get user's favorite shops
      */
     public List<ShopListDTO> getUserFavorites(User user) {
-        logger.info("Fetching favorites for user: {}", user.getUsername());
+        log.info("Fetching favorites for user: {}", user.getUsername());
 
         // Use optimized query to fetch Favorites + Shop + Photos in one go
         List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
@@ -44,7 +42,7 @@ public class FavoriteService {
      */
     @Transactional
     public void addToFavorites(Long shopId, User user, String notes) {
-        logger.info("Adding shop {} to favorites for user {}", shopId, user.getUsername());
+        log.info("Adding shop {} to favorites for user {}", shopId, user.getUsername());
 
         // Check if already favorited
         if (favoriteRepository.existsByUserIdAndShopId(user.getId(), shopId)) {
@@ -62,7 +60,7 @@ public class FavoriteService {
         favorite.setNotes(notes);
 
         favoriteRepository.save(favorite);
-        logger.info("Shop {} added to favorites successfully", shopId);
+        log.info("Shop {} added to favorites successfully", shopId);
     }
 
     /**
@@ -70,10 +68,10 @@ public class FavoriteService {
      */
     @Transactional
     public void removeFromFavorites(Long shopId, User user) {
-        logger.info("Removing shop {} from favorites for user {}", shopId, user.getUsername());
+        log.info("Removing shop {} from favorites for user {}", shopId, user.getUsername());
 
         favoriteRepository.deleteByUserIdAndShopId(user.getId(), shopId);
-        logger.info("Shop {} removed from favorites successfully", shopId);
+        log.info("Shop {} removed from favorites successfully", shopId);
     }
 
     /**
@@ -88,7 +86,7 @@ public class FavoriteService {
      */
     @Transactional
     public void updateNotes(Long shopId, User user, String notes, String notesMm) {
-        logger.info("Updating favorite notes for shop {} by user {}", shopId, user.getUsername());
+        log.info("Updating favorite notes for shop {} by user {}", shopId, user.getUsername());
 
         Favorite favorite = favoriteRepository.findByUserIdAndShopId(user.getId(), shopId)
                 .orElseThrow(() -> new IllegalArgumentException("Favorite not found"));

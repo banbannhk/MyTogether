@@ -2,6 +2,7 @@ package org.th.entity.shops;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -17,7 +18,8 @@ public class ReviewPhoto {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "review_id", nullable = false)
-    private Review review;
+    @ToString.Exclude
+    private ShopReview shopReview;
 
     @Column(nullable = false, length = 500)
     private String url;

@@ -25,4 +25,7 @@ public class ReviewSummaryDTO {
     private String ownerResponse;
     private String ownerResponseMm;
     private LocalDateTime createdAt;
+
+    private java.util.List<ReviewPhotoDTO> photos;
+    private java.util.List<ReviewCommentDTO> comments;
 }

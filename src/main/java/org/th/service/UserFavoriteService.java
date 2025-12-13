@@ -1,7 +1,6 @@
 package org.th.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +18,9 @@ import java.util.Optional;
  * Service for managing user favorites/bookmarks
  */
 @Service
+@Transactional
+@lombok.extern.slf4j.Slf4j
 public class UserFavoriteService {
-
-    private static final Logger logger = LoggerFactory.getLogger(UserFavoriteService.class);
 
     @Autowired
     private UserFavoriteRepository userFavoriteRepository;
@@ -37,11 +36,11 @@ public class UserFavoriteService {
      */
     @Transactional
     public UserFavorite addFavorite(Long userId, Long shopId, String notes) {
-        logger.info("User {} adding shop {} to favorites", userId, shopId);
+        log.info("User {} adding shop {} to favorites", userId, shopId);
 
         // Check if already favorited
         if (userFavoriteRepository.existsByUserIdAndShopId(userId, shopId)) {
-            logger.warn("Shop {} already in user {}'s favorites", shopId, userId);
+            log.warn("Shop {} already in user {}'s favorites", shopId, userId);
             throw new IllegalStateException("Shop is already in favorites");
         }
 
@@ -58,7 +57,7 @@ public class UserFavoriteService {
                 .build();
 
         UserFavorite saved = userFavoriteRepository.save(favorite);
-        logger.info("Successfully added shop {} to user {}'s favorites", shopId, userId);
+        log.info("Successfully added shop {} to user {}'s favorites", shopId, userId);
         return saved;
     }
 
@@ -67,9 +66,9 @@ public class UserFavoriteService {
      */
     @Transactional
     public void removeFavorite(Long userId, Long shopId) {
-        logger.info("User {} removing shop {} from favorites", userId, shopId);
+        log.info("User {} removing shop {} from favorites", userId, shopId);
         userFavoriteRepository.deleteByUserIdAndShopId(userId, shopId);
-        logger.info("Successfully removed shop {} from user {}'s favorites", shopId, userId);
+        log.info("Successfully removed shop {} from user {}'s favorites", shopId, userId);
     }
 
     /**
@@ -77,7 +76,7 @@ public class UserFavoriteService {
      */
     @Transactional(readOnly = true)
     public List<UserFavorite> getUserFavorites(Long userId) {
-        logger.info("Fetching all favorites for user {}", userId);
+        log.info("Fetching all favorites for user {}", userId);
         return userFavoriteRepository.findByUserIdWithShop(userId);
     }
 
@@ -86,7 +85,7 @@ public class UserFavoriteService {
      */
     @Transactional(readOnly = true)
     public List<UserFavorite> getUserFavoritesByCategory(Long userId, String category) {
-        logger.info("Fetching favorites for user {} in category {}", userId, category);
+        log.info("Fetching favorites for user {} in category {}", userId, category);
         return userFavoriteRepository.findByUserIdAndCategory(userId, category);
     }
 
@@ -111,7 +110,7 @@ public class UserFavoriteService {
      */
     @Transactional
     public UserFavorite updateFavoriteNotes(Long userId, Long shopId, String notes) {
-        logger.info("Updating notes for user {}'s favorite shop {}", userId, shopId);
+        log.info("Updating notes for user {}'s favorite shop {}", userId, shopId);
 
         UserFavorite favorite = userFavoriteRepository.findByUserIdAndShopId(userId, shopId)
                 .orElseThrow(() -> new IllegalArgumentException("Favorite not found"));

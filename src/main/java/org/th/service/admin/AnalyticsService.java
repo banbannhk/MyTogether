@@ -1,4 +1,4 @@
-package org.th.service;
+package org.th.service.admin;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

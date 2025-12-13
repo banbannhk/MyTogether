@@ -5,9 +5,9 @@ import org.springframework.stereotype.Service;
 import org.th.entity.User;
 import org.th.entity.enums.UserSegment;
 import org.th.repository.FavoriteRepository;
-import org.th.repository.ReviewRepository;
 import org.th.repository.UserActivityRepository;
 import org.th.repository.UserRepository;
+import org.th.repository.ShopReviewRepository;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -22,7 +22,7 @@ public class UserSegmentationService {
     private final UserRepository userRepository;
     private final UserActivityRepository userActivityRepository;
     private final FavoriteRepository favoriteRepository;
-    private final ReviewRepository reviewRepository;
+    private final ShopReviewRepository shopReviewRepository;
 
     /**
      * Classify user based on activity patterns (RFM-style scoring)

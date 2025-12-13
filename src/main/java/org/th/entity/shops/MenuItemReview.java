@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.th.entity.User;
+import org.th.entity.shops.MenuItemReviewPhoto;
+import org.th.entity.shops.ReviewComment;
 
 import java.time.LocalDateTime;
 
@@ -40,4 +42,10 @@ public class MenuItemReview {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @OneToMany(mappedBy = "menuItemReview", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<MenuItemReviewPhoto> photos = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "menuItemReview", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ReviewComment> comments = new java.util.ArrayList<>();
 }

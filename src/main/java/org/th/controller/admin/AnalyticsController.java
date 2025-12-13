@@ -1,4 +1,4 @@
-package org.th.controller;
+package org.th.controller.admin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.th.dto.ApiResponse;
 import org.th.dto.analytics.*;
 import org.th.entity.enums.FeedSectionType;
-import org.th.service.AnalyticsService;
+import org.th.service.admin.AnalyticsService;
 import org.th.service.FeedInteractionService;
 import org.th.service.SessionService;
 

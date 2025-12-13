@@ -1,8 +1,6 @@
 package org.th.service;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.th.dto.feed.*;
@@ -23,9 +21,8 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PersonalizedFeedService {
-
-    private static final Logger logger = LoggerFactory.getLogger(PersonalizedFeedService.class);
 
     private final ShopRepository shopRepository;
     private final UserRepository userRepository;
@@ -44,7 +41,7 @@ public class PersonalizedFeedService {
     @Transactional(readOnly = true)
     public PersonalizedFeedDTO generatePersonalizedFeed(String username, Double latitude, Double longitude,
             Double radiusKm, String deviceId, Long districtId) {
-        logger.info("Generating personalized feed for user: {}, device: {}", username, deviceId);
+        log.info("Generating personalized feed for user: {}, device: {}", username, deviceId);
 
         User user = null;
         if (username != null && !username.equals("guest")) {

@@ -4,13 +4,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.th.entity.shops.Review;
+import org.th.entity.shops.ShopReview;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface ReviewRepository extends JpaRepository<Review, Long> {
+public interface ShopReviewRepository extends JpaRepository<ShopReview, Long> {
 
     /**
      * Find all reviews for a specific shop
@@ -18,7 +18,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * @param shopId Shop ID
      * @return List of reviews
      */
-    List<Review> findByShopIdOrderByCreatedAtDesc(Long shopId);
+    List<ShopReview> findByShopIdOrderByCreatedAtDesc(Long shopId);
 
     /**
      * Find visible reviews for a shop
@@ -26,7 +26,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * @param shopId Shop ID
      * @return List of visible reviews
      */
-    List<Review> findByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(Long shopId);
+    List<ShopReview> findByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(Long shopId);
 
     /**
      * Find top 10 recent visible reviews for a shop
@@ -34,7 +34,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * @param shopId Shop ID
      * @return List of top 10 reviews
      */
-    List<Review> findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(Long shopId);
+    List<ShopReview> findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(Long shopId);
 
     /**
      * Find reviews by a specific user
@@ -42,7 +42,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * @param userId User ID
      * @return List of user's reviews
      */
-    List<Review> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<ShopReview> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     /**
      * Count reviews for a shop
@@ -58,7 +58,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * @param shopId Shop ID
      * @return Average rating
      */
-    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.shop.id = :shopId AND r.isVisible = true")
+    @Query("SELECT AVG(r.rating) FROM ShopReview r WHERE r.shop.id = :shopId AND r.isVisible = true")
     Double calculateAverageRating(@Param("shopId") Long shopId);
 
     /**
@@ -86,7 +86,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     /**
      * Bulk count reviews by Shop ID since a date
      */
-    @Query("SELECT r.shop.id, COUNT(r) FROM Review r " +
+    @Query("SELECT r.shop.id, COUNT(r) FROM ShopReview r " +
             "WHERE r.createdAt >= :since " +
             "GROUP BY r.shop.id")
     List<Object[]> countReviewsByShopSince(@Param("since") LocalDateTime since);

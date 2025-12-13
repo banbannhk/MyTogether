@@ -1,8 +1,6 @@
 package org.th.service;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -25,9 +23,8 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class SessionService {
-
-    private static final Logger logger = LoggerFactory.getLogger(SessionService.class);
 
     private final UserSessionRepository sessionRepository;
 
@@ -51,7 +48,7 @@ public class SessionService {
                 .build();
 
         session = sessionRepository.save(session);
-        logger.info("Started session {} for user {}", sessionId, user != null ? user.getUsername() : "guest");
+        log.info("Started session {} for user {}", sessionId, user != null ? user.getUsername() : "guest");
         return session;
     }
 
@@ -74,7 +71,7 @@ public class SessionService {
             }
 
             sessionRepository.save(session);
-            logger.info("Ended session {}, duration: {}s", sessionId, session.getDurationSeconds());
+            log.info("Ended session {}, duration: {}s", sessionId, session.getDurationSeconds());
         }
     }
 
@@ -102,10 +99,10 @@ public class SessionService {
                 }
 
                 sessionRepository.save(session);
-                logger.debug("Updated session {} activity count: {}", sessionId, session.getActivityCount());
+                log.debug("Updated session {} activity count: {}", sessionId, session.getActivityCount());
             }
         } catch (Exception e) {
-            logger.error("Failed to update session activity: {}", e.getMessage());
+            log.error("Failed to update session activity: {}", e.getMessage());
         }
     }
 

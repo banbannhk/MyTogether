@@ -1,7 +1,7 @@
+
 package org.th.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +19,8 @@ import java.util.stream.Collectors;
  * Service for managing user preferences and settings
  */
 @Service
+@lombok.extern.slf4j.Slf4j
 public class UserPreferencesService {
-
-    private static final Logger logger = LoggerFactory.getLogger(UserPreferencesService.class);
 
     @Autowired
     private UserPreferencesRepository userPreferencesRepository;
@@ -34,7 +33,7 @@ public class UserPreferencesService {
      */
     @Transactional
     public UserPreferences getUserPreferences(Long userId) {
-        logger.info("Fetching preferences for user {}", userId);
+        log.info("Fetching preferences for user {}", userId);
 
         Optional<UserPreferences> existing = userPreferencesRepository.findByUserId(userId);
         if (existing.isPresent()) {
@@ -42,7 +41,7 @@ public class UserPreferencesService {
         }
 
         // Create default preferences if not exists
-        logger.info("Creating default preferences for user {}", userId);
+        log.info("Creating default preferences for user {}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -65,7 +64,7 @@ public class UserPreferencesService {
      */
     @Transactional
     public UserPreferences updatePreferences(Long userId, UserPreferences updatedPreferences) {
-        logger.info("Updating preferences for user {}", userId);
+        log.info("Updating preferences for user {}", userId);
 
         UserPreferences existing = getUserPreferences(userId);
 
@@ -110,7 +109,7 @@ public class UserPreferencesService {
         }
 
         UserPreferences saved = userPreferencesRepository.save(existing);
-        logger.info("Successfully updated preferences for user {}", userId);
+        log.info("Successfully updated preferences for user {}", userId);
         return saved;
     }
 
@@ -119,7 +118,7 @@ public class UserPreferencesService {
      */
     @Transactional
     public UserPreferences addFavoriteCategory(Long userId, String category) {
-        logger.info("Adding category {} to user {}'s favorites", category, userId);
+        log.info("Adding category {} to user {}'s favorites", category, userId);
 
         UserPreferences prefs = getUserPreferences(userId);
         List<String> categories = getFavoriteCategoriesAsList(prefs);
@@ -138,7 +137,7 @@ public class UserPreferencesService {
      */
     @Transactional
     public UserPreferences removeFavoriteCategory(Long userId, String category) {
-        logger.info("Removing category {} from user {}'s favorites", category, userId);
+        log.info("Removing category {} from user {}'s favorites", category, userId);
 
         UserPreferences prefs = getUserPreferences(userId);
         List<String> categories = getFavoriteCategoriesAsList(prefs);

@@ -2,8 +2,6 @@ package org.th.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,12 +18,12 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class UserActivityService {
-
-    private static final Logger logger = LoggerFactory.getLogger(UserActivityService.class);
 
     private final UserActivityRepository userActivityRepository;
     private final UserRepository userRepository;
+    private final org.th.repository.ShopRepository shopRepository;
     private final DeviceTrackingService deviceTrackingService;
 
     /**
@@ -44,7 +42,7 @@ public class UserActivityService {
             String osName = parseOsName(userAgent);
             String deviceType = parseDeviceType(userAgent);
 
-            UserActivity activity = UserActivity.builder()
+            UserActivity.UserActivityBuilder builder = UserActivity.builder()
                     .user(user)
                     .deviceId(deviceId)
                     .ipAddress(ipAddress)
@@ -56,15 +54,21 @@ public class UserActivityService {
                     .targetName(targetName)
                     .latitude(lat)
                     .longitude(lon)
-                    .metadata(metadata)
-                    .build();
+                    .metadata(metadata);
+
+            // Link Shop if applicable
+            if (targetId != null && (type == ActivityType.VIEW_SHOP || type == ActivityType.CLICK_DIRECTIONS)) {
+                shopRepository.findById(targetId).ifPresent(builder::shop);
+            }
+
+            UserActivity activity = builder.build();
 
             userActivityRepository.save(activity);
 
-            logger.debug("Logged activity: {} by user: {}", type, user != null ? user.getUsername() : "guest");
+            log.debug("Logged activity: {} by user: {}", type, user != null ? user.getUsername() : "guest");
 
         } catch (Exception e) {
-            logger.error("Failed to log user activity: {}", e.getMessage());
+            log.error("Failed to log user activity: {}", e.getMessage());
             // Don't rethrow - logging failure shouldn't fail the request
         }
     }
@@ -117,7 +121,7 @@ public class UserActivityService {
     public void bindDeviceHistory(String deviceId, Long userId) {
         if (deviceId != null && userId != null) {
             userActivityRepository.bindDeviceActivityToUser(deviceId, userId);
-            logger.info("Bound all anonymous activity for device {} to user {}", deviceId, userId);
+            log.info("Bound all anonymous activity for device {} to user {}", deviceId, userId);
         }
     }
 }

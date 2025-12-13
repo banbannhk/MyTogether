@@ -1,4 +1,4 @@
-package org.th.controller;
+package org.th.controller.admin;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/system")
+@RequestMapping("/api/admin/system")
 @RequiredArgsConstructor
 @Tag(name = "System", description = "System monitoring and diagnostics")
 public class SystemController {

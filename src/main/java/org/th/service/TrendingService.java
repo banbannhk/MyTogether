@@ -1,30 +1,27 @@
 package org.th.service;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.th.entity.shops.Shop;
 import org.th.entity.enums.ActivityType;
 import org.th.repository.FavoriteRepository;
-import org.th.repository.ReviewRepository;
 import org.th.repository.ShopRepository;
 import org.th.repository.UserActivityRepository;
+import org.th.repository.ShopReviewRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class TrendingService {
-
-        private static final Logger logger = LoggerFactory.getLogger(TrendingService.class);
 
         private final ShopRepository shopRepository;
         private final UserActivityRepository userActivityRepository;
-        private final ReviewRepository reviewRepository;
+        private final ShopReviewRepository shopReviewRepository;
         private final FavoriteRepository favoriteRepository;
 
         // Weights for scoring
@@ -46,7 +43,7 @@ public class TrendingService {
         @Transactional
         @org.springframework.cache.annotation.CacheEvict(value = "trendingShops", allEntries = true)
         public void updateTrendingScores() {
-                logger.info("Starting optimized trending score calculation...");
+                log.info("Starting optimized trending score calculation...");
                 long start = System.currentTimeMillis();
 
                 List<Shop> allShops = shopRepository.findAll();
@@ -62,7 +59,7 @@ public class TrendingService {
                                 favoriteRepository.countFavoritesByShopSince(sevenDaysAgo));
 
                 java.util.Map<Long, Long> reviewsMap = getCountMap(
-                                reviewRepository.countReviewsByShopSince(sevenDaysAgo));
+                                shopReviewRepository.countReviewsByShopSince(sevenDaysAgo));
 
                 // Conversions: Directions, Calls, Shares
                 java.util.Map<Long, Long> conversionsMap = getCountMap(
@@ -88,7 +85,7 @@ public class TrendingService {
                                 shop.setTrendingScore(score);
 
                         } catch (Exception e) {
-                                logger.error("Error calculating score for shop {}: {}", shop.getId(), e.getMessage());
+                                log.error("Error calculating score for shop {}: {}", shop.getId(), e.getMessage());
                         }
                 }
 
@@ -96,7 +93,7 @@ public class TrendingService {
                 shopRepository.saveAll(allShops);
 
                 long duration = System.currentTimeMillis() - start;
-                logger.info("Trending score calculation completed for {} shops in {} ms.", allShops.size(), duration);
+                log.info("Trending score calculation completed for {} shops in {} ms.", allShops.size(), duration);
         }
 
         /**
@@ -119,7 +116,7 @@ public class TrendingService {
          */
         @org.springframework.cache.annotation.Cacheable(value = "trendingShops", key = "'top10'")
         public List<Shop> getTopTrendingShops() {
-                logger.debug("Fetching top trending shops from database");
+                log.debug("Fetching top trending shops from database");
                 List<Shop> trendingShops = shopRepository.findTop10ByOrderByTrendingScoreDesc();
 
                 if (trendingShops.isEmpty()) {

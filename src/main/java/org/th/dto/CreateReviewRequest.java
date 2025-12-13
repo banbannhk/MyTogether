@@ -33,4 +33,7 @@ public class CreateReviewRequest {
     // Optional: for guest reviewers (if authentication is optional)
     private String reviewerName;
     private String reviewerEmail;
+
+    // Optional: photo URLs
+    private java.util.List<String> photoUrls;
 }

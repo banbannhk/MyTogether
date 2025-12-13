@@ -2,8 +2,6 @@ package org.th.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,16 +19,16 @@ import org.th.service.ShopService;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * REST Controller for managing shop photos
  */
 @RestController
-@RequestMapping("/api/shops")
+@RequestMapping("/api/shops/photos")
 @Tag(name = "Shop Photos", description = "APIs for managing shop photos")
+@Slf4j
 public class ShopPhotoController {
-
-    private static final Logger logger = LoggerFactory.getLogger(ShopPhotoController.class);
 
     @Autowired
     private SupabaseStorageService supabaseStorageService;
@@ -92,19 +90,19 @@ public class ShopPhotoController {
                     .uploadedAt(shopPhoto.getUploadedAt())
                     .build();
 
-            logger.info("Successfully uploaded photo for shop {}", shopId);
+            log.info("Successfully uploaded photo for shop {}", shopId);
             return ResponseEntity.ok(ApiResponse.success("Photo uploaded successfully", photoDTO));
 
         } catch (ResourceNotFoundException e) {
-            logger.error("Shop not found: {}", shopId);
+            log.error("Shop not found: {}", shopId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error(e.getMessage()));
         } catch (SupabaseStorageException e) {
-            logger.error("Failed to upload photo to Supabase", e);
+            log.error("Failed to upload photo to Supabase", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to upload photo: " + e.getMessage()));
         } catch (Exception e) {
-            logger.error("Unexpected error uploading photo", e);
+            log.error("Unexpected error uploading photo", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("An unexpected error occurred"));
         }
@@ -173,14 +171,14 @@ public class ShopPhotoController {
             shop.getPhotos().remove(photoToDelete);
             shopRepository.save(shop);
 
-            logger.info("Successfully deleted photo {} from shop {}", photoId, shopId);
+            log.info("Successfully deleted photo {} from shop {}", photoId, shopId);
             return ResponseEntity.ok(ApiResponse.success("Photo deleted successfully", null));
 
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(ApiResponse.error(e.getMessage()));
         } catch (SupabaseStorageException e) {
-            logger.error("Failed to delete photo from Supabase", e);
+            log.error("Failed to delete photo from Supabase", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Failed to delete photo: " + e.getMessage()));
         }
@@ -210,7 +208,7 @@ public class ShopPhotoController {
             primaryPhoto.setIsPrimary(true);
             shopRepository.save(shop);
 
-            logger.info("Set photo {} as primary for shop {}", photoId, shopId);
+            log.info("Set photo {} as primary for shop {}", photoId, shopId);
             return ResponseEntity.ok(ApiResponse.success("Primary photo set successfully", null));
 
         } catch (ResourceNotFoundException e) {

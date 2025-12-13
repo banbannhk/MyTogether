@@ -1,4 +1,4 @@
-package org.th.service;
+package org.th.service.admin;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -133,6 +133,44 @@ public class ExcelImportService {
             shop.getPhotos().add(photo);
         }
 
+        // Expanded Columns requested by user
+        // 22: Address MM
+        shop.setAddressMm(getCellValueAsString(row.getCell(22)));
+
+        // 23: Price Preference (BUDGET, MODERATE, EXPENSIVE, LUXURY)
+        String pricePrefStr = getCellValueAsString(row.getCell(23));
+        if (pricePrefStr != null && !pricePrefStr.isEmpty()) {
+            try {
+                shop.setPricePreference(org.th.entity.enums.PricePreference.valueOf(pricePrefStr.toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid enum or log warning
+                log.warn("Invalid price preference: {}", pricePrefStr);
+            }
+        }
+
+        // 24: Is Halal
+        shop.setIsHalal(getCellValueAsBoolean(row.getCell(24)));
+
+        // 25: Is Vegetarian (Shop level)
+        shop.setIsVegetarian(getCellValueAsBoolean(row.getCell(25)));
+
+        // 26: Additional Photos (Comma separated)
+        String additionalPhotos = getCellValueAsString(row.getCell(26));
+        if (additionalPhotos != null && !additionalPhotos.isEmpty()) {
+            String[] urls = additionalPhotos.split(",");
+            for (String url : urls) {
+                if (!url.trim().isEmpty()) {
+                    ShopPhoto photo = new ShopPhoto();
+                    photo.setUrl(url.trim());
+                    photo.setThumbnailUrl(url.trim());
+                    photo.setIsPrimary(false);
+                    photo.setPhotoType("gallery");
+                    photo.setShop(shop);
+                    shop.getPhotos().add(photo);
+                }
+            }
+        }
+
         // Initialize defaults
         shop.setRatingAvg(BigDecimal.ZERO);
         shop.setRatingCount(0);
@@ -175,6 +213,10 @@ public class ExcelImportService {
 
                 // New Column: imageUrl (8)
                 item.setImageUrl(getCellValueAsString(row.getCell(8)));
+
+                // Expanded Columns
+                item.setNameMm(getCellValueAsString(row.getCell(9)));
+                item.setNameEn(getCellValueAsString(row.getCell(10)));
 
                 item.setIsAvailable(true);
 

@@ -47,7 +47,7 @@ public class SecurityConfig {
                                 "/api/feed/**", // ✅ Public feed (Guest personalized)
                                 "/api/shops/**", // ✅ Public shop browsing
                                 "/api/reviews/**", // Reviews are public to read
-                                "/api/system/**", // System diagnostics
+                                // "/api/system/**", // System diagnostics - Moved to Admin
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",

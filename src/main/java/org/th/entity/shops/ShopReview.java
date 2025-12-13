@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "reviews")
+@Table(name = "shop_reviews") // Changed table name for consistency
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Review {
+public class ShopReview { // Renamed class from Review to ShopReview
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,8 +67,12 @@ public class Review {
     @Column(name = "owner_response_at")
     private LocalDateTime ownerResponseAt;
 
-    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "shopReview", cascade = CascadeType.ALL, orphanRemoval = true) // Updated mappedBy to
+                                                                                         // "shopReview"
     private List<ReviewPhoto> photos = new ArrayList<>();
+
+    @OneToMany(mappedBy = "shopReview", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReviewComment> comments = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

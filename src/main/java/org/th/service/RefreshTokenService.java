@@ -1,9 +1,6 @@
-// File: src/main/java/org/th/service/RefreshTokenService.java
 package org.th.service;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,9 +14,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Transactional
+@lombok.extern.slf4j.Slf4j
 public class RefreshTokenService {
 
-    private static final Logger logger = LoggerFactory.getLogger(RefreshTokenService.class);
     private static final int REFRESH_TOKEN_VALIDITY_DAYS = 30; // 30 days
 
     @Autowired
@@ -45,7 +43,7 @@ public class RefreshTokenService {
 
         // Create new token
         RefreshToken refreshToken = new RefreshToken();
-        //refreshToken.setUserId(userId);
+        // refreshToken.setUserId(userId);
         refreshToken.setDeviceInfo(new DeviceInfo());
         refreshToken.setToken(generateTokenString());
         refreshToken.setExpiresAt(LocalDateTime.now().plusDays(REFRESH_TOKEN_VALIDITY_DAYS));
@@ -53,7 +51,7 @@ public class RefreshTokenService {
         refreshToken.setUserAgent(request.getHeader("User-Agent"));
 
         refreshToken = refreshTokenRepository.save(refreshToken);
-        logger.info("✅ Created refresh token for user {} on device {}", userId, deviceId);
+        log.info("✅ Created refresh token for user {} on device {}", userId, deviceId);
 
         return refreshToken;
     }
@@ -79,9 +77,9 @@ public class RefreshTokenService {
         refreshToken = refreshTokenRepository.save(refreshToken);
 
         // Track token usage in device info
-//        deviceTrackingService.trackTokenRefresh(refreshToken.getDeviceId(), token);
+        // deviceTrackingService.trackTokenRefresh(refreshToken.getDeviceId(), token);
 
-        logger.info("✅ Refresh token used for user on device {}", refreshToken.getDeviceInfo().getDeviceId());
+        log.info("✅ Refresh token used for user on device {}", refreshToken.getDeviceInfo().getDeviceId());
 
         return refreshToken;
     }
@@ -98,7 +96,7 @@ public class RefreshTokenService {
             refreshToken.setRevoked(true);
             refreshToken.setRevokedAt(LocalDateTime.now());
             refreshTokenRepository.save(refreshToken);
-            logger.info("✅ Revoked token for user on device {}", refreshToken.getDeviceInfo().getDeviceId());
+            log.info("✅ Revoked token for user on device {}", refreshToken.getDeviceInfo().getDeviceId());
         }
     }
 
@@ -113,7 +111,7 @@ public class RefreshTokenService {
      * Get client IP
      */
     private String getClientIp(HttpServletRequest request) {
-        String[] headers = {"X-Forwarded-For", "Proxy-Client-IP", "REMOTE_ADDR"};
+        String[] headers = { "X-Forwarded-For", "Proxy-Client-IP", "REMOTE_ADDR" };
         for (String header : headers) {
             String ip = request.getHeader(header);
             if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {

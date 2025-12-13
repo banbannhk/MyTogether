@@ -3,8 +3,6 @@ package org.th.config.ratelimit;
 import io.github.bucket4j.Bucket;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,9 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Interceptor for rate limiting using Bucket4j
  */
 @Component
+@lombok.extern.slf4j.Slf4j
 public class RateLimitInterceptor implements HandlerInterceptor {
-
-    private static final Logger logger = LoggerFactory.getLogger(RateLimitInterceptor.class);
 
     // Cache for buckets per user/IP
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
@@ -52,7 +49,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         }
 
         // Rate limit exceeded
-        logger.warn("Rate limit exceeded for key: {}", key);
+        log.warn("Rate limit exceeded for key: {}", key);
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType("application/json");
         response.getWriter().write(String.format(
