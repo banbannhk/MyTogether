@@ -22,6 +22,45 @@ public class DataImportController {
     private final ExcelImportService excelImportService;
 
     /**
+     * Full Database Reset & Import
+     */
+    @PostMapping("/full-reset")
+    @Operation(summary = "Full Database Reset & Import", description = "Truncates ALL tables and imports data from Excel")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importFullReset(
+            @RequestParam("file") MultipartFile file) {
+
+        // Validate file
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("File is empty"));
+        }
+
+        try {
+            ExcelImportService.ImportResult result = excelImportService.fullDatabaseReset(file);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("successCount", result.getSuccessCount());
+            response.put("errorCount", result.getErrors().size());
+            response.put("errors", result.getErrors());
+
+            if (result.hasErrors()) {
+                return ResponseEntity.ok(ApiResponse.success(
+                        "Reset & Import completed with " + result.getSuccessCount() + " records, "
+                                + result.getErrors().size()
+                                + " errors",
+                        response));
+            }
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Successfully reset database and imported " + result.getSuccessCount() + " records",
+                    response));
+
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    ApiResponse.error("Full Reset failed: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Import shops from Excel file
      */
     @PostMapping("/shops/excel")

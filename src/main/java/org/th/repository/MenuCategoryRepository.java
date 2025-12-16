@@ -11,33 +11,40 @@ import java.util.Optional;
 @Repository
 public interface MenuCategoryRepository extends JpaRepository<MenuCategory, Long> {
 
-    /**
-     * Find menu category by ID with items and photos eagerly loaded
-     */
-    @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
-            "LEFT JOIN FETCH mc.items mi " +
-            "LEFT JOIN FETCH mc.photos " +
-            "LEFT JOIN FETCH mi.photos " +
-            "WHERE mc.id = :id")
-    Optional<MenuCategory> findByIdWithItems(@Param("id") Long id);
+        /**
+         * Find menu category by ID with items and photos eagerly loaded
+         */
+        @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
+                        "LEFT JOIN FETCH mc.items mi " +
+                        "LEFT JOIN FETCH mc.photos " +
+                        "LEFT JOIN FETCH mi.photos " +
+                        "WHERE mc.id = :id")
+        Optional<MenuCategory> findByIdWithItems(@Param("id") Long id);
 
-    /**
-     * Search menu categories
-     */
-    @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
-            "JOIN FETCH mc.shop s " +
-            "LEFT JOIN FETCH mc.photos " +
-            "WHERE s.isActive = true AND mc.isActive = true AND " +
-            "(LOWER(mc.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(mc.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(mc.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%')))")
-    java.util.List<MenuCategory> searchMenuCategories(@Param("keyword") String keyword);
+        /**
+         * Search menu categories
+         */
+        @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
+                        "JOIN FETCH mc.shop s " +
+                        "LEFT JOIN FETCH mc.photos " +
+                        "WHERE s.isActive = true AND mc.isActive = true AND " +
+                        "(LOWER(mc.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(mc.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(mc.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+        java.util.List<MenuCategory> searchMenuCategories(@Param("keyword") String keyword);
 
-    /**
-     * Find menu categories for a shop with items
-     */
-    @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
-            "LEFT JOIN FETCH mc.items " +
-            "WHERE mc.shop.id = :shopId")
-    java.util.List<MenuCategory> findByShopIdWithItems(@Param("shopId") Long shopId);
+        /**
+         * Find menu categories for a shop with items
+         */
+        @Query("SELECT DISTINCT mc FROM MenuCategory mc " +
+                        "LEFT JOIN FETCH mc.items " +
+                        "WHERE mc.shop.id = :shopId")
+        java.util.List<MenuCategory> findByShopIdWithItems(@Param("shopId") Long shopId);
+
+        /**
+         * Find menu categories by shop ID (Paginated)
+         */
+        @Query("SELECT mc FROM MenuCategory mc WHERE mc.shop.id = :shopId")
+        org.springframework.data.domain.Page<MenuCategory> findByShopId(@Param("shopId") Long shopId,
+                        org.springframework.data.domain.Pageable pageable);
 }

@@ -9,4 +9,16 @@ import java.util.List;
 @Repository
 public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
     List<MenuItem> findByCategoryId(Long categoryId);
+
+    /**
+     * Find menu items by category ID (Paginated)
+     */
+    org.springframework.data.domain.Page<MenuItem> findByCategoryId(Long categoryId,
+            org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Find menu items by shop ID (Paginated)
+     */
+    org.springframework.data.domain.Page<MenuItem> findByShopId(Long shopId,
+            org.springframework.data.domain.Pageable pageable);
 }

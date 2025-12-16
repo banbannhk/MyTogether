@@ -491,38 +491,6 @@ public class ShopService {
     }
 
     /**
-     * Search shops by shop name only
-     * 
-     * @param name Shop name to search
-     * @return List of shops matching the name
-     */
-    public List<Shop> searchByShopName(String name) {
-        log.info("Searching shops by name: {}", name);
-        List<Shop> results = shopRepository.searchByShopName(name);
-
-        List<Shop> initializedResults = fetchWithPhotos(results);
-
-        log.info("Found {} shops matching name '{}'", initializedResults.size(), name);
-        return initializedResults;
-    }
-
-    /**
-     * Search shops by food/menu item name
-     * 
-     * @param foodName Food name to search
-     * @return List of shops that have the matching food item
-     */
-    public List<Shop> searchByFoodName(String foodName) {
-        log.info("Searching shops by food name: {}", foodName);
-        List<Shop> results = shopRepository.searchByMenuItemName(foodName);
-
-        List<Shop> initializedResults = fetchWithPhotos(results);
-
-        log.info("Found {} shops with food matching '{}'", initializedResults.size(), foodName);
-        return initializedResults;
-    }
-
-    /**
      * Combined search for shops, categories, and menu items
      * 
      * @param keyword Search keyword

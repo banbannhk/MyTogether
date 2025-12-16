@@ -152,6 +152,15 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
         List<Shop> searchByShopName(@Param("keyword") String keyword);
 
         /**
+         * Search shops by name (Paginated)
+         */
+        @Query("SELECT s FROM Shop s WHERE " +
+                        "LOWER(s.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(s.nameMm) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(s.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+        Page<Shop> searchByShopName(@Param("keyword") String keyword, Pageable pageable);
+
+        /**
          * Search shops by menu item/food name
          * 
          * @param foodName Food/menu item name to search for

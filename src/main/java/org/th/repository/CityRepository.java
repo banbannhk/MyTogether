@@ -11,5 +11,7 @@ import java.util.Optional;
 public interface CityRepository extends JpaRepository<City, Long> {
     Optional<City> findBySlug(String slug);
 
+    Optional<City> findByNameEnIgnoreCase(String nameEn);
+
     List<City> findByActiveTrue();
 }
