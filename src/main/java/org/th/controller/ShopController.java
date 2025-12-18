@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.*;
 import org.th.dto.ApiResponse;
 import org.th.dto.ShopDetailDTO;
 import org.th.dto.ShopListDTO;
-import org.th.dto.LocationCountDTO;
 import org.th.entity.shops.Shop;
 import org.th.service.ShopService;
 import org.th.service.TrendingService;
@@ -35,7 +34,6 @@ public class ShopController {
         private final TrendingService trendingService;
         private final RecommendationService recommendationService;
         private final org.th.service.MenuCategoryService menuCategoryService;
-        private final org.th.repository.ShopRepository shopRepository; // Direct access for aggregation
 
         /**
          * Get nearby shops based on user location
@@ -237,7 +235,7 @@ public class ShopController {
                 boolean isAuthenticated = auth != null && auth.isAuthenticated()
                                 && !"anonymousUser".equals(auth.getPrincipal());
 
-                if (isAuthenticated) {
+                if (isAuthenticated && auth != null) {
                         username = auth.getName();
                 }
 

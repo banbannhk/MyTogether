@@ -13,34 +13,34 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByUsername(String username);
+        Optional<User> findByUsername(String username);
 
-    Optional<User> findByEmail(String email);
+        Optional<User> findByEmail(String email);
 
-    Optional<User> findByUsernameOrEmail(String username, String email);
+        Optional<User> findByUsernameOrEmail(String username, String email);
 
-    boolean existsByUsername(String username);
+        boolean existsByUsername(String username);
 
-    boolean existsByEmail(String email);
+        boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE LOWER(u.fullName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))")
-    org.springframework.data.domain.Page<User> searchUsers(@Param("query") String query,
-            org.springframework.data.domain.Pageable pageable);
+        @Query("SELECT u FROM User u WHERE LOWER(u.fullName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))")
+        org.springframework.data.domain.Page<User> searchUsers(@Param("query") String query,
+                        org.springframework.data.domain.Pageable pageable);
 
-    /**
-     * Get consolidated user engagement metrics (optimized - 1 query instead of 4)
-     * Combines activity, favorite, and review counts in single query
-     */
-    @Query("SELECT new org.th.dto.UserEngagementDTO(" +
-            "COUNT(DISTINCT ua.id), " +
-            "COUNT(DISTINCT f.id), " +
-            "COUNT(DISTINCT r.id), " +
-            "SUM(CASE WHEN ua.createdAt > :since THEN 1 ELSE 0 END)) " +
-            "FROM User u " +
-            "LEFT JOIN UserActivity ua ON ua.user.id = u.id " +
-            "LEFT JOIN Favorite f ON f.user.id = u.id " +
-            "LEFT JOIN ShopReview r ON r.user.id = u.id " +
-            "WHERE u.id = :userId " +
-            "GROUP BY u.id")
-    UserEngagementDTO getUserEngagement(@Param("userId") Long userId, @Param("since") LocalDateTime since);
+        /**
+         * Get consolidated user engagement metrics (optimized - 1 query instead of 4)
+         * Combines activity, favorite, and review counts in single query
+         */
+        @Query("SELECT new org.th.dto.UserEngagementDTO(" +
+                        "COUNT(DISTINCT ua.id), " +
+                        "COUNT(DISTINCT f.id), " +
+                        "COUNT(DISTINCT r.id), " +
+                        "SUM(CASE WHEN ua.createdAt > :since THEN 1 ELSE 0 END)) " +
+                        "FROM User u " +
+                        "LEFT JOIN UserActivity ua ON ua.user.id = u.id " +
+                        "LEFT JOIN UserFavorite f ON f.user.id = u.id " +
+                        "LEFT JOIN ShopReview r ON r.user.id = u.id " +
+                        "WHERE u.id = :userId " +
+                        "GROUP BY u.id")
+        UserEngagementDTO getUserEngagement(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 }

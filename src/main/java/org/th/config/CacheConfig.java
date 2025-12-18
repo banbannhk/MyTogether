@@ -45,8 +45,8 @@ public class CacheConfig {
                 // Shops by category - cache for 15 minutes
                 buildCache("shopsByCategory", 500, 15, TimeUnit.MINUTES),
 
-                // Shops by township - cache for 15 minutes
-                buildCache("shopsByTownship", 500, 15, TimeUnit.MINUTES),
+                // Shops by district - cache for 15 minutes
+                buildCache("shopsByDistrict", 500, 15, TimeUnit.MINUTES),
 
                 // Time context - cache for 15 minutes
                 buildCache("timeContext", 10, 15, TimeUnit.MINUTES),

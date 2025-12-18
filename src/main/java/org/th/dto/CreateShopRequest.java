@@ -54,11 +54,9 @@ public class CreateShopRequest {
     @Schema(example = "အမှတ် ၁၂၃, ...")
     private String addressMm;
 
-    @Schema(example = "Bahan")
-    private String township;
-
-    @Schema(example = "Yangon")
-    private String city;
+    @NotNull(message = "District is required")
+    @Schema(example = "1", description = "District ID")
+    private Long districtId;
 
     @Schema(example = "09450001122")
     private String phone;

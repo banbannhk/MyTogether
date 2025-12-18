@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LocationCountDTO {
-    private String township;
+    private String district;
     private Long count;
 }

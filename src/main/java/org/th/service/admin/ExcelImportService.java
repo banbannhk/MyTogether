@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.web.multipart.MultipartFile;
 import org.th.entity.shops.*;
@@ -31,17 +32,24 @@ public class ExcelImportService {
     private final org.th.repository.UserRepository userRepository;
     private final org.th.repository.ShopReviewRepository shopReviewRepository;
     private final org.th.repository.UserFavoriteRepository userFavoriteRepository;
+    private final org.th.repository.MenuCategoryRepository menuCategoryRepository;
+    private final org.th.repository.MenuItemRepository menuItemRepository;
+    private final org.th.repository.OperatingHourRepository operatingHourRepository;
+    private final org.th.repository.ReviewPhotoRepository reviewPhotoRepository;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     private final jakarta.persistence.EntityManager entityManager;
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
-    public ImportResult fullDatabaseReset(MultipartFile file) throws IOException {
-        // 1. Truncate Tables
-        truncateAllTables();
-
-        // 2. Import Data
-        return importShopsFromExcel(file);
-    }
+    // @Transactional - Removed to allow partial success (truncation has its own tx)
+//    public ImportResult fullDatabaseReset(MultipartFile file) throws java.io.IOException {
+//        log.warn("⚠️ STARTING FULL DATABASE RESET ⚠️");
+//
+//        // 1. Truncate all tables
+//        truncateAllTables();
+//
+//        // 2. Import Shops (which includes MenuItems)
+//        return importShopsFromExcel(file);
+//    }
 
     public void truncateAllTables() {
         new org.springframework.transaction.support.TransactionTemplate(transactionManager).execute(status -> {
@@ -81,6 +89,12 @@ public class ExcelImportService {
             Sheet shopsSheet = workbook.getSheet("Shops");
             if (shopsSheet != null) {
                 importShops(shopsSheet, result);
+            }
+
+            // Import Menu Items (ADDED)
+            Sheet menuItemsSheet = workbook.getSheet("MenuItems");
+            if (menuItemsSheet != null) {
+                importMenuItems(menuItemsSheet, result);
             }
 
             // 5. Operating Hours
@@ -124,6 +138,7 @@ public class ExcelImportService {
     }
 
     private void importShops(Sheet sheet, ImportResult result) {
+        log.info("📍 Starting Shops import from sheet with {} rows", sheet.getLastRowNum());
         Iterator<Row> rows = sheet.iterator();
 
         // Skip header row
@@ -132,6 +147,9 @@ public class ExcelImportService {
         }
 
         int rowNum = 1;
+        int successCount = 0;
+        int errorCount = 0;
+
         while (rows.hasNext()) {
             Row row = rows.next();
             rowNum++;
@@ -139,126 +157,92 @@ public class ExcelImportService {
             try {
                 Shop shop = parseShopRow(row);
 
+                log.debug("Parsed shop: name={}, slug={}, district={}",
+                        shop.getName(), shop.getSlug(),
+                        shop.getDistrict() != null ? shop.getDistrict().getNameEn() : "NULL");
+
                 // Check for duplicate slug
                 if (shopRepository.findBySlug(shop.getSlug()) != null) {
-                    result.addError("Row " + rowNum + ": Slug '" + shop.getSlug() + "' already exists");
+                    String error = "Row " + rowNum + ": Slug '" + shop.getSlug() + "' already exists";
+                    log.warn(error);
+                    result.addError(error);
+                    errorCount++;
                     continue;
                 }
 
                 shopRepository.save(shop);
                 result.incrementSuccess();
+                successCount++;
+
+                if (successCount % 10 == 0) {
+                    log.info("  Imported {} shops so far...", successCount);
+                }
 
             } catch (Exception e) {
-                result.addError("Row " + rowNum + ": " + e.getMessage());
+                String error = "Row " + rowNum + ": " + e.getMessage();
+                log.error("Shop import error at row {}: {}", rowNum, e.getMessage(), e);
+                result.addError(error);
+                errorCount++;
             }
         }
+
+        log.info("✅ Shops import complete: {} success, {} errors", successCount, errorCount);
     }
 
     private Shop parseShopRow(Row row) {
         Shop shop = new Shop();
 
-        // Mandatory fields
+        // Excel columns: name, nameMm, nameEn, slug, category, subCategory, latitude,
+        // longitude, address, shortName, subCategoryDetail, district, city, phone,
+        // email, description, descriptionMm, specialties, hasDelivery, hasParking,
+        // hasWifi, isVerified, isHalal, primaryPhotoUrl
+
         shop.setName(getCellValueAsString(row.getCell(0))); // name
         shop.setNameMm(getCellValueAsString(row.getCell(1))); // nameMm
-        shop.setSlug(getCellValueAsString(row.getCell(2))); // slug
-        shop.setCategory(getCellValueAsString(row.getCell(3))); // category
-        shop.setLatitude(new BigDecimal(getCellValueAsString(row.getCell(4)))); // latitude
-        shop.setLongitude(new BigDecimal(getCellValueAsString(row.getCell(5)))); // longitude
-        shop.setAddress(getCellValueAsString(row.getCell(6))); // address
+        shop.setNameEn(getCellValueAsString(row.getCell(2))); // nameEn
+        shop.setSlug(getCellValueAsString(row.getCell(3))); // slug
+        shop.setCategory(getCellValueAsString(row.getCell(4))); // category
+        shop.setSubCategory(getCellValueAsString(row.getCell(5))); // subCategory
+        shop.setLatitude(new BigDecimal(getCellValueAsString(row.getCell(6)))); // latitude
+        shop.setLongitude(new BigDecimal(getCellValueAsString(row.getCell(7)))); // longitude
+        shop.setAddress(getCellValueAsString(row.getCell(8))); // address
 
-        // Optional fields
-        shop.setNameEn(getCellValueAsString(row.getCell(7)));
-        shop.setSubCategory(getCellValueAsString(row.getCell(8)));
-        shop.setTownship(getCellValueAsString(row.getCell(9)));
-        shop.setCity(getCellValueAsString(row.getCell(10), "Yangon"));
-        shop.setPhone(getCellValueAsString(row.getCell(11)));
-        shop.setEmail(getCellValueAsString(row.getCell(12)));
-        shop.setDescription(getCellValueAsString(row.getCell(13)));
-        shop.setDescriptionMm(getCellValueAsString(row.getCell(14)));
-        shop.setSpecialties(getCellValueAsString(row.getCell(15)));
-        shop.setHasDelivery(getCellValueAsBoolean(row.getCell(16)));
-        shop.setHasParking(getCellValueAsBoolean(row.getCell(17)));
-        shop.setHasWifi(getCellValueAsBoolean(row.getCell(18)));
-        shop.setIsVerified(getCellValueAsBoolean(row.getCell(19)));
-        shop.setIsActive(getCellValueAsBoolean(row.getCell(20), true));
+        // district and city for District lookup
+        String districtName = getCellValueAsString(row.getCell(11)); // district
+        String cityName = getCellValueAsString(row.getCell(12), "Bangkok"); // city
 
-        // New Column: photos (21) - Unified logic
-        // We will accept comma separated in 21, or 26, or both.
-        // First image found becomes primary/cover.
-        List<String> allPhotoUrls = new ArrayList<>();
+        shop.setPhone(getCellValueAsString(row.getCell(13))); // phone
+        shop.setEmail(getCellValueAsString(row.getCell(14))); // email
+        shop.setDescription(getCellValueAsString(row.getCell(15))); // description
+        shop.setDescriptionMm(getCellValueAsString(row.getCell(16))); // descriptionMm
+        shop.setSpecialties(getCellValueAsString(row.getCell(17))); // specialties
+        shop.setHasDelivery(getCellValueAsBoolean(row.getCell(18))); // hasDelivery
+        shop.setHasParking(getCellValueAsBoolean(row.getCell(19))); // hasParking
+        shop.setHasWifi(getCellValueAsBoolean(row.getCell(20))); // hasWifi
+        shop.setIsVerified(getCellValueAsBoolean(row.getCell(21))); // isVerified
+        shop.setIsHalal(getCellValueAsBoolean(row.getCell(22))); // isHalal
+        shop.setIsActive(true); // Active by default
 
-        String col21 = getCellValueAsString(row.getCell(21));
-        if (col21 != null && !col21.isEmpty()) {
-            Collections.addAll(allPhotoUrls, col21.split(","));
-        }
-
-        String col26 = getCellValueAsString(row.getCell(26));
-        if (col26 != null && !col26.isEmpty()) {
-            Collections.addAll(allPhotoUrls, col26.split(","));
-        }
-
-        // Remove duplicates and empty
-        Set<String> processedUrls = new LinkedHashSet<>();
-        for (String url : allPhotoUrls) {
-            if (url != null && !url.trim().isEmpty()) {
-                processedUrls.add(url.trim());
-            }
-        }
-
-        boolean setPrimary = false;
-        for (String url : processedUrls) {
+        // Primary photo from column 23
+        String primaryPhotoUrl = getCellValueAsString(row.getCell(23)); // primaryPhotoUrl
+        if (primaryPhotoUrl != null && !primaryPhotoUrl.isEmpty()) {
             ShopPhoto photo = new ShopPhoto();
-            photo.setUrl(url);
-            photo.setThumbnailUrl(url);
+            photo.setUrl(primaryPhotoUrl);
+            photo.setThumbnailUrl(primaryPhotoUrl);
             photo.setShop(shop);
-
-            if (!setPrimary) {
-                photo.setIsPrimary(true);
-                photo.setPhotoType("cover");
-                setPrimary = true;
-            } else {
-                photo.setIsPrimary(false);
-                photo.setPhotoType("gallery");
-            }
+            photo.setIsPrimary(true);
+            photo.setPhotoType("cover");
             shop.getPhotos().add(photo);
         }
 
-        // Expanded Columns requested by user
-        // 22: Address MM
-        shop.setAddressMm(getCellValueAsString(row.getCell(22)));
-
-        // 23: Price Preference (BUDGET, MODERATE, EXPENSIVE, LUXURY)
-        String pricePrefStr = getCellValueAsString(row.getCell(23));
-        if (pricePrefStr != null && !pricePrefStr.isEmpty()) {
-            try {
-                shop.setPricePreference(org.th.entity.enums.PricePreference.valueOf(pricePrefStr.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                // Ignore invalid enum or log warning
-                log.warn("Invalid price preference: {}", pricePrefStr);
-            }
-        }
-
-        // 24: Is Halal
-        shop.setIsHalal(getCellValueAsBoolean(row.getCell(24)));
-
-        // 25: Is Vegetarian (Shop level)
-        shop.setIsVegetarian(getCellValueAsBoolean(row.getCell(25)));
-
-        // Lookup District Entity
-        if (shop.getTownship() != null) {
-            // Try to find district by name and matching city
-            String cityFilter = shop.getCity() != null ? shop.getCity() : "Yangon";
-
-            // Since we don't have a direct findByNameAndCityName, we use name first
-            // Ideally we should add findByNameAndCity_Name to repo, but here we can try:
+        // Lookup District Entity by names from Excel
+        // Simplified: Just match by district name since all districts are in Bangkok
+        if (districtName != null) {
             districtRepository.findAll().stream()
-                    .filter(d -> d.getNameEn().equalsIgnoreCase(shop.getTownship()) &&
-                            (d.getCity() == null || d.getCity().getNameEn().equalsIgnoreCase(cityFilter)))
+                    .filter(d -> d.getNameEn() != null && d.getNameEn().equalsIgnoreCase(districtName))
                     .findFirst()
-                    .ifPresent(shop::setDistrictObj);
+                    .ifPresent(shop::setDistrict);
         }
-
-        // Initialize defaults
 
         // Initialize defaults
         shop.setRatingAvg(BigDecimal.ZERO);
@@ -269,12 +253,16 @@ public class ExcelImportService {
         return shop;
     }
 
+    @Transactional
     private void importMenuItems(Sheet sheet, ImportResult result) {
+        log.info("📍 Starting MenuItems import from sheet with {} rows", sheet.getLastRowNum());
         Iterator<Row> rows = sheet.iterator();
         if (rows.hasNext())
             rows.next(); // Skip header
 
         Map<String, MenuCategory> categories = new HashMap<>();
+        int successCount = 0;
+        int errorCount = 0;
 
         while (rows.hasNext()) {
             Row row = rows.next();
@@ -288,24 +276,39 @@ public class ExcelImportService {
                 }
 
                 String categoryName = getCellValueAsString(row.getCell(1));
+                // Use a simplified category lookup that doesn't rely on expensive lazy loading
+                // in loop
                 MenuCategory category = getOrCreateCategory(shop, categoryName, categories);
 
                 MenuItem item = new MenuItem();
-                item.setShop(shop); // Set the shop explicitly
+                item.setShop(shop);
                 item.setCategory(category);
                 item.setName(getCellValueAsString(row.getCell(2)));
-                item.setPrice(new BigDecimal(getCellValueAsString(row.getCell(3))));
-                item.setCurrency(getCellValueAsString(row.getCell(4), "MMK"));
+                item.setNameEn(item.getName()); // Auto-fill EN
+
+                String priceStr = getCellValueAsString(row.getCell(3));
+                if (priceStr != null) {
+                    try {
+                        item.setPrice(new BigDecimal(priceStr));
+                    } catch (NumberFormatException e) {
+                        item.setPrice(BigDecimal.ZERO);
+                    }
+                }
+
+                item.setCurrency(getCellValueAsString(row.getCell(4)));
                 item.setIsVegetarian(getCellValueAsBoolean(row.getCell(5)));
                 item.setIsSpicy(getCellValueAsBoolean(row.getCell(6)));
                 item.setIsPopular(getCellValueAsBoolean(row.getCell(7)));
-
-                // New Column: imageUrl (8) - Primary
                 item.setImageUrl(getCellValueAsString(row.getCell(8)));
+                item.setIsAvailable(true);
 
-                // Expanded Columns
+                // Expanded Columns - Restore nameMm
                 item.setNameMm(getCellValueAsString(row.getCell(9)));
                 item.setNameEn(getCellValueAsString(row.getCell(10)));
+
+                // Save item directly (bypassing shop collection lazy loading)
+                menuItemRepository.save(item);
+                successCount++;
 
                 // Column 11: Photos (Comma separated)
                 String photos = getCellValueAsString(row.getCell(11));
@@ -323,14 +326,23 @@ public class ExcelImportService {
                 item.setIsAvailable(true);
 
                 category.getItems().add(item);
+                successCount++;
+
+                if (successCount % 50 == 0) {
+                    log.info("  Imported {} menu items so far...", successCount);
+                }
 
             } catch (Exception e) {
                 result.addError("Menu row: " + e.getMessage());
+                errorCount++;
             }
         }
 
         // Save all categories
-        categories.values().forEach(cat -> shopRepository.save(cat.getShop()));
+        // No need to save shops at the end if we saved items/categories directly
+        // categories.values().forEach(cat -> shopRepository.save(cat.getShop()));
+
+        log.info("✅ MenuItems import complete: {} success, {} errors", successCount, errorCount);
     }
 
     private MenuCategory getOrCreateCategory(Shop shop, String catName, Map<String, MenuCategory> cache) {
@@ -340,16 +352,23 @@ public class ExcelImportService {
             cat.setShop(shop);
             cat.setName(catName);
             cat.setIsActive(true);
-            cat.setDisplayOrder(shop.getMenuCategories().size());
-            shop.getMenuCategories().add(cat);
-            return cat;
+            // Just use a simple order based on cache size for this shop
+            // This avoids shop.getMenuCategories().size() lazy load
+            cat.setDisplayOrder(0);
+
+            // Save immediately
+            return menuCategoryRepository.save(cat);
         });
     }
 
     private void importOperatingHours(Sheet sheet, ImportResult result) {
+        log.info("📍 Starting OperatingHours import from sheet with {} rows", sheet.getLastRowNum());
         Iterator<Row> rows = sheet.iterator();
         if (rows.hasNext())
             rows.next(); // Skip header
+
+        int successCount = 0;
+        int errorCount = 0;
 
         while (rows.hasNext()) {
             Row row = rows.next();
@@ -364,20 +383,29 @@ public class ExcelImportService {
 
                 OperatingHour hour = new OperatingHour();
                 hour.setShop(shop);
-                hour.setDayOfWeek(Integer.parseInt(getCellValueAsString(row.getCell(1))));
+                // Excel stores integers as doubles (e.g., "1.0"), so parse as double first
+                String dayStr = getCellValueAsString(row.getCell(1));
+                hour.setDayOfWeek((int) Double.parseDouble(dayStr));
                 hour.setOpeningTime(
                         LocalTime.parse(getCellValueAsString(row.getCell(2)), DateTimeFormatter.ofPattern("HH:mm")));
                 hour.setClosingTime(
                         LocalTime.parse(getCellValueAsString(row.getCell(3)), DateTimeFormatter.ofPattern("HH:mm")));
                 hour.setIsClosed(getCellValueAsBoolean(row.getCell(4)));
 
-                shop.getOperatingHours().add(hour);
-                shopRepository.save(shop);
+                // Save directly
+                operatingHourRepository.save(hour);
+                successCount++;
+
+                if (successCount % 100 == 0) {
+                    log.info("  Imported {} operating hours so far...", successCount);
+                }
 
             } catch (Exception e) {
                 result.addError("Hours row: " + e.getMessage());
+                errorCount++;
             }
         }
+        log.info("✅ OperatingHours import complete: {} success, {} errors", successCount, errorCount);
     }
 
     // Helper methods
@@ -531,13 +559,14 @@ public class ExcelImportService {
                 result.addError("User Row " + rowNum + ": " + e.getMessage());
             }
         }
+        log.info("✅ Users import complete: {} success, {} errors", result.getSuccessCount(), result.getErrors().size());
         return result;
     }
 
     public void importReviews(Sheet sheet, ImportResult result) {
         Iterator<Row> rows = sheet.iterator();
         if (rows.hasNext())
-            rows.next();
+            rows.next(); // Skip header
 
         int rowNum = 1;
         while (rows.hasNext()) {
@@ -566,25 +595,36 @@ public class ExcelImportService {
                 review.setReviewerName(user.getUsername());
                 review.setIsVisible(true);
 
-                // Photos
+                // 1. Save Review first to get ID
+                review = shopReviewRepository.save(review);
+
+                // 2. Process and Save Photos
                 String photos = getCellValueAsString(row.getCell(4));
                 if (photos != null && !photos.isEmpty()) {
+                    List<org.th.entity.shops.ReviewPhoto> photoList = new ArrayList<>();
                     for (String url : photos.split(",")) {
                         if (!url.trim().isEmpty()) {
                             org.th.entity.shops.ReviewPhoto photo = new org.th.entity.shops.ReviewPhoto();
                             photo.setUrl(url.trim());
                             photo.setShopReview(review);
-                            review.getPhotos().add(photo);
+                            photo.setUploadedAt(java.time.LocalDateTime.now());
+
+                            // Save photo directly
+                            reviewPhotoRepository.save(photo);
+                            photoList.add(photo);
                         }
                     }
+                    // Update local list (optional, for result consistency)
+                    review.setPhotos(photoList);
                 }
 
-                shopReviewRepository.save(review);
                 result.incrementSuccess();
             } catch (Exception e) {
+                log.error("❌ Review Import Error Row {}: {}", rowNum, e.getMessage(), e);
                 result.addError("Review Row " + rowNum + ": " + e.getMessage());
             }
         }
+        log.info("✅ Reviews import complete: {} success", result.getSuccessCount());
     }
 
     public void importFavorites(Sheet sheet, ImportResult result) {
@@ -623,6 +663,7 @@ public class ExcelImportService {
                 // Ignore duplicates
             }
         }
+        log.info("✅ Favorites import complete: {} success, 0 errors", result.getSuccessCount());
     }
 
     private void importUserActivityFromSheet(Sheet sheet, ImportResult result) {

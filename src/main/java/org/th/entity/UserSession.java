@@ -48,12 +48,15 @@ public class UserSession {
     @Column(name = "session_end")
     private LocalDateTime sessionEnd; // Nullable if session is active
 
+    @Builder.Default
     @Column(name = "activity_count")
     private Integer activityCount = 0;
 
+    @Builder.Default
     @Column(name = "shops_viewed")
     private Integer shopsViewed = 0;
 
+    @Builder.Default
     @Column(name = "searches_performed")
     private Integer searchesPerformed = 0;
 
@@ -67,6 +70,7 @@ public class UserSession {
     @Column(name = "duration_seconds")
     private Integer durationSeconds; // Calculated on session end
 
+    @Builder.Default
     @Column(name = "is_active")
     private Boolean isActive = true;
 

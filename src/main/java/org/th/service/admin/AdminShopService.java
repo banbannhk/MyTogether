@@ -34,6 +34,7 @@ public class AdminShopService {
 
     private final ShopRepository shopRepository;
     private final SupabaseStorageService supabaseStorageService;
+    private final org.th.repository.DistrictRepository districtRepository;
 
     @Transactional(readOnly = true)
     public Page<ShopListDTO> getAllShops(int page, int size, String search) {
@@ -68,8 +69,10 @@ public class AdminShopService {
                 .subCategory(shop.getSubCategory())
                 .address(shop.getAddress())
                 .addressMm(shop.getAddressMm())
-                .district(shop.getTownship())
-                .city(shop.getCity())
+                .district(shop.getDistrict() != null ? shop.getDistrict().getNameEn() : null)
+                .city(shop.getDistrict() != null && shop.getDistrict().getCity() != null
+                        ? shop.getDistrict().getCity().getNameEn()
+                        : null)
                 .latitude(shop.getLatitude())
                 .longitude(shop.getLongitude())
                 .ratingAvg(shop.getRatingAvg())
@@ -127,8 +130,11 @@ public class AdminShopService {
         shop.setLongitude(request.getLongitude());
         shop.setAddress(request.getAddress());
         shop.setAddressMm(request.getAddressMm());
-        shop.setTownship(request.getTownship());
-        shop.setCity(request.getCity() != null ? request.getCity() : "Yangon");
+        // Lookup and set District
+        org.th.entity.District district = districtRepository.findById(request.getDistrictId())
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("District not found with id: " + request.getDistrictId()));
+        shop.setDistrict(district);
 
         shop.setPhone(request.getPhone());
         shop.setDescription(request.getDescription());
@@ -225,10 +231,12 @@ public class AdminShopService {
             shop.setAddress(request.getAddress());
         if (request.getAddressMm() != null)
             shop.setAddressMm(request.getAddressMm());
-        if (request.getTownship() != null)
-            shop.setTownship(request.getTownship());
-        if (request.getCity() != null)
-            shop.setCity(request.getCity());
+        if (request.getDistrictId() != null) {
+            org.th.entity.District district = districtRepository.findById(request.getDistrictId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "District not found with id: " + request.getDistrictId()));
+            shop.setDistrict(district);
+        }
 
         if (request.getPhone() != null)
             shop.setPhone(request.getPhone());
@@ -346,8 +354,10 @@ public class AdminShopService {
                 .longitude(shop.getLongitude())
                 .address(shop.getAddress())
                 .addressMm(shop.getAddressMm())
-                .district(shop.getTownship()) // Mapping township to district
-                .city(shop.getCity())
+                .district(shop.getDistrict() != null ? shop.getDistrict().getNameEn() : null)
+                .city(shop.getDistrict() != null && shop.getDistrict().getCity() != null
+                        ? shop.getDistrict().getCity().getNameEn()
+                        : null)
                 .phone(shop.getPhone())
                 .email(shop.getEmail())
                 .description(shop.getDescription())

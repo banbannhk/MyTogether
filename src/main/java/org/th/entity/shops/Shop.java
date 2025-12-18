@@ -22,7 +22,7 @@ import java.util.List;
         @Index(name = "idx_shop_name", columnList = "name"),
         @Index(name = "idx_shop_name_mm", columnList = "name_mm"),
         @Index(name = "idx_shop_name_en", columnList = "name_en"),
-        @Index(name = "idx_shop_township", columnList = "township"),
+        @Index(name = "idx_shop_district_id", columnList = "district_id"),
         @Index(name = "idx_shop_category", columnList = "category"),
         @Index(name = "idx_shop_is_active", columnList = "is_active"),
         @Index(name = "idx_shop_rating", columnList = "rating_avg DESC")
@@ -65,12 +65,6 @@ public class Shop {
 
     @Column(name = "address_mm", columnDefinition = "TEXT")
     private String addressMm;
-
-    @Column(length = 100)
-    private String township;
-
-    @Column(length = 100)
-    private String city = "Yangon";
 
     @Column(length = 50)
     private String phone;
@@ -161,6 +155,6 @@ public class Shop {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "district_id")
-    private org.th.entity.District districtObj;
+    private org.th.entity.District district;
     // ==========================================
 }

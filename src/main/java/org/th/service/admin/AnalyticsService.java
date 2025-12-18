@@ -122,7 +122,7 @@ public class AnalyticsService {
     }
 
     /**
-     * Get Location (Township) statistics
+     * Get Location (District) statistics
      */
     @Transactional(readOnly = true)
     public List<LocationStatsDTO> getLocationStats(LocalDate startDate, LocalDate endDate) {

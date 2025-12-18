@@ -47,26 +47,33 @@ public class UserPreferences {
     private String dietaryRestrictions; // "Vegetarian,Halal,Vegan"
 
     // Default search radius
+    @Builder.Default
     @Column(name = "preferred_radius_km")
     private Double preferredRadiusKm = 5.0;
 
     // Language preference
+    @Builder.Default
     @Column(name = "preferred_language", length = 10)
     private String preferredLanguage = "en"; // "en" or "mm"
 
     // Notification settings
+    @Builder.Default
     @Column(name = "receive_notifications")
     private Boolean receiveNotifications = true;
 
+    @Builder.Default
     @Column(name = "notification_distance_km")
     private Double notificationDistanceKm = 1.0;
 
+    @Builder.Default
     @Column(name = "notify_new_shops")
     private Boolean notifyNewShops = true;
 
+    @Builder.Default
     @Column(name = "notify_favorite_updates")
     private Boolean notifyFavoriteUpdates = true;
 
+    @Builder.Default
     @Column(name = "notify_special_offers")
     private Boolean notifySpecialOffers = true;
 

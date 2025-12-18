@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.th.entity.shops.Favorite;
+import org.th.entity.UserFavorite;
 import org.th.entity.shops.Shop;
 import org.th.entity.shops.ShopReview;
-import org.th.repository.FavoriteRepository;
+import org.th.repository.UserFavoriteRepository;
 import org.th.repository.ShopRepository;
 import org.th.repository.ShopReviewRepository;
 import org.th.repository.UserRepository;
@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class RecommendationService {
 
     private final ShopRepository shopRepository;
-    private final FavoriteRepository favoriteRepository;
+    private final UserFavoriteRepository userFavoriteRepository;
     private final ShopReviewRepository shopReviewRepository;
     private final UserRepository userRepository;
     private final org.th.repository.UserActivityRepository userActivityRepository;
@@ -61,7 +61,7 @@ public class RecommendationService {
 
         // 1a. User Signals
         if (userId != null) {
-            List<Favorite> favorites = favoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            List<UserFavorite> favorites = userFavoriteRepository.findByUserIdOrderByCreatedAtDesc(userId);
             favorites.forEach(f -> {
                 excludedIds.add(f.getShop().getId()); // Don't recommend what they already favorited
                 preferredCategories.add(f.getShop().getCategory());

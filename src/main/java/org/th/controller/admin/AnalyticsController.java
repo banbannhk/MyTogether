@@ -96,7 +96,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/locations")
-    @Operation(summary = "Location stats", description = "Get activity by township")
+    @Operation(summary = "Location stats", description = "Get activity by district")
     public ResponseEntity<ApiResponse<List<LocationStatsDTO>>> getLocationStats(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {

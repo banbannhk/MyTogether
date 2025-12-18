@@ -22,13 +22,16 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 @lombok.extern.slf4j.Slf4j
+@RequiredArgsConstructor
 public class ShopService {
 
-    @Autowired
-    private ShopRepository shopRepository;
-
-    @Autowired
-    private org.th.service.MenuCategoryService menuCategoryService;
+    private final org.th.repository.ShopRepository shopRepository;
+    private final org.th.service.MenuCategoryService menuCategoryService;
+    private final org.th.repository.ShopReviewRepository shopReviewRepository;
+    private final org.th.repository.UserActivityRepository userActivityRepository; // Repository or Service? Variable
+                                                                                   // name
+                                                                                   // matches Service
+    private final org.th.repository.OperatingHourRepository operatingHourRepository;
 
     private static final Double DEFAULT_RADIUS_KM = 5.0;
     private static final Double MAX_RADIUS_KM = 50.0;
@@ -205,9 +208,12 @@ public class ShopService {
 
         Shop shop = shopOpt.get();
 
-        // DECOUPLED: Pass empty list for reviews (fetched separately)
-        // Pass lat/lon for ETA calculation
-        return Optional.of(convertToDetailDTO(shop, lat, lon));
+        // Fetch Top 10 Reviews
+        List<ShopReview> topReviews = shopReviewRepository
+                .findTop10ByShopIdAndIsVisibleTrueOrderByCreatedAtDesc(shopId);
+
+        // Pass lat/lon for ETA calculation and Top 10 Reviews
+        return Optional.of(convertToDetailDTO(shop, topReviews, lat, lon));
     }
 
     /**
@@ -336,16 +342,17 @@ public class ShopService {
     }
 
     /**
-     * Get shops by township
+     * Get shops by district name (DEPRECATED - district is now a relationship)
+     * Use getShopsByDistrictId(Long districtId) instead
      * 
-     * @param township Township name
-     * @return List of shops in township
+     * @param district District name
+     * @return List of shops in district
      */
-    @Cacheable("shopsByTownship")
-    public List<Shop> getShopsByTownship(String township) {
-        log.info("Fetching shops in township: {}", township);
-        return shopRepository.findByTownship(township);
-    }
+    // @Cacheable("shopsByDistrict")
+    // public List<Shop> getShopsByDistrict(String district) {
+    // log.info("Fetching shops in district: {}", district);
+    // return shopRepository.findByDistrict(district);
+    // }
 
     /**
      * Save or update a shop
@@ -591,8 +598,10 @@ public class ShopService {
                 .subCategory(shop.getSubCategory())
                 .address(shop.getAddress())
                 .addressMm(shop.getAddressMm())
-                .district(shop.getTownship())
-                .city(shop.getCity())
+                .district(shop.getDistrict() != null ? shop.getDistrict().getNameEn() : null)
+                .city(shop.getDistrict() != null && shop.getDistrict().getCity() != null
+                        ? shop.getDistrict().getCity().getNameEn()
+                        : null)
                 .latitude(shop.getLatitude())
                 .longitude(shop.getLongitude())
                 .ratingAvg(shop.getRatingAvg())
@@ -709,25 +718,42 @@ public class ShopService {
         List<org.th.dto.ReviewSummaryDTO> reviewDTOs = null;
         if (topReviews != null) {
             reviewDTOs = topReviews.stream()
-                    .map(review -> org.th.dto.ReviewSummaryDTO.builder()
-                            .id(review.getId())
-                            .rating(review.getRating())
-                            .comment(review.getComment())
-                            .commentMm(review.getCommentMm())
-                            .reviewerName(review.getReviewerName())
-                            .helpfulCount(review.getHelpfulCount())
-                            .ownerResponse(review.getOwnerResponse())
-                            .ownerResponseMm(review.getOwnerResponseMm())
-                            .createdAt(review.getCreatedAt())
-                            .build())
+                    .map(review -> {
+                        List<org.th.dto.ReviewPhotoDTO> reviewPhotos = null;
+                        if (review.getPhotos() != null && !review.getPhotos().isEmpty()) {
+                            reviewPhotos = review.getPhotos().stream()
+                                    .map(p -> org.th.dto.ReviewPhotoDTO.builder()
+                                            .id(p.getId())
+                                            .url(p.getUrl())
+                                            .thumbnailUrl(p.getThumbnailUrl())
+                                            .build())
+                                    .collect(Collectors.toList());
+                        }
+
+                        return org.th.dto.ReviewSummaryDTO.builder()
+                                .id(review.getId())
+                                .rating(review.getRating())
+                                .comment(review.getComment())
+                                .commentMm(review.getCommentMm())
+                                .reviewerName(review.getReviewerName())
+                                .helpfulCount(review.getHelpfulCount())
+                                .ownerResponse(review.getOwnerResponse())
+                                .ownerResponseMm(review.getOwnerResponseMm())
+                                .createdAt(review.getCreatedAt())
+                                .photos(reviewPhotos)
+                                .build();
+                    })
                     .collect(Collectors.toList());
         }
 
         // Convert operating hours
         // Convert operating hours
         List<org.th.dto.OperatingHourDTO> operatingHourDTOs = new java.util.ArrayList<>();
-        if (shop.getOperatingHours() != null) {
-            operatingHourDTOs = shop.getOperatingHours().stream()
+        // Fetch directly to avoid lazy load issues and ensure data is retrieved
+        List<org.th.entity.shops.OperatingHour> hours = operatingHourRepository.findByShopId(shop.getId());
+
+        if (hours != null && !hours.isEmpty()) {
+            operatingHourDTOs = hours.stream()
                     .sorted(java.util.Comparator.comparing(org.th.entity.shops.OperatingHour::getDayOfWeek))
                     .map(hour -> org.th.dto.OperatingHourDTO.builder()
                             .id(hour.getId())
@@ -751,8 +777,10 @@ public class ShopService {
                 .longitude(shop.getLongitude())
                 .address(shop.getAddress())
                 .addressMm(shop.getAddressMm())
-                .district(shop.getTownship())
-                .city(shop.getCity())
+                .district(shop.getDistrict() != null ? shop.getDistrict().getNameEn() : null)
+                .city(shop.getDistrict() != null && shop.getDistrict().getCity() != null
+                        ? shop.getDistrict().getCity().getNameEn()
+                        : null)
                 .phone(shop.getPhone())
                 .email(shop.getEmail())
                 .description(shop.getDescription())
@@ -840,6 +868,32 @@ public class ShopService {
             dto.setMinEta(etaRange[0]);
             dto.setMaxEta(etaRange[1]);
             dto.setEstimatedTime(etaRange[0] + " - " + etaRange[1] + " min");
+        }
+
+        return dto;
+    }
+
+    /**
+     * Convert to DTO with location (ETA) and Reviews
+     */
+    public org.th.dto.ShopDetailDTO convertToDetailDTO(Shop shop, List<ShopReview> topReviews, Double userLat,
+            Double userLon) {
+        org.th.dto.ShopDetailDTO dto = convertToDetailDTO(shop, topReviews);
+
+        if (dto != null && userLat != null && userLon != null
+                && shop.getLatitude() != null && shop.getLongitude() != null) {
+
+            double distance = calculateDistance(
+                    userLat, userLon,
+                    shop.getLatitude().doubleValue(), shop.getLongitude().doubleValue());
+            distance = Math.round(distance * 10.0) / 10.0;
+
+            int[] etaRange = calculateEtaRangeV2(distance);
+
+            dto.setDistance(distance);
+            dto.setMinEta(etaRange[0]);
+            dto.setMaxEta(etaRange[1]);
+            dto.setEstimatedTime(etaRange[0] + "-" + etaRange[1] + " min");
         }
 
         return dto;

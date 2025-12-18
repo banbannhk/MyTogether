@@ -86,13 +86,13 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Long
                         @Param("end") LocalDateTime end);
 
         /**
-         * Get stats by Location (Township)
-         * Joins with Shop table to get township
+         * Get stats by Location (District)
+         * Joins with Shop table to get district
          */
-        @Query("SELECT new org.th.dto.analytics.LocationStatsDTO(s.township, COUNT(a)) " +
+        @Query("SELECT new org.th.dto.analytics.LocationStatsDTO(s.district.nameEn, COUNT(a)) " +
                         "FROM UserActivity a JOIN Shop s ON a.targetId = s.id " +
                         "WHERE a.activityType = 'VIEW_SHOP' AND a.createdAt BETWEEN :start AND :end " +
-                        "GROUP BY s.township " +
+                        "GROUP BY s.district.nameEn " +
                         "ORDER BY COUNT(a) DESC")
         List<LocationStatsDTO> getLocationStats(
                         @Param("start") LocalDateTime start,

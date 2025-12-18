@@ -223,52 +223,48 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
          */
         List<Shop> findByIsActiveTrueAndIsVerifiedTrue();
 
-        /**
-         * Find shops by township
-         * 
-         * @param township Township name
-         * @return List of shops in township
-         */
-        List<Shop> findByTownship(String township);
+        // Removed: findByDistrict(String) - Shop.district is now a District object, not
+        // a String
+        // Use findByDistrict_Id(Long) or findByDistrict_NameEn(String) instead
 
         /**
-         * Count active shops by township
+         * Count active shops by district
          */
-        @Query("SELECT new org.th.dto.LocationCountDTO(s.township, COUNT(s)) " +
-                        "FROM Shop s WHERE s.isActive = true AND s.township IS NOT NULL " +
-                        "GROUP BY s.township ORDER BY COUNT(s) DESC")
-        List<LocationCountDTO> countShopsByTownship();
+        @Query("SELECT new org.th.dto.LocationCountDTO(s.district.nameEn, COUNT(s)) " +
+                        "FROM Shop s WHERE s.isActive = true AND s.district IS NOT NULL " +
+                        "GROUP BY s.district.nameEn ORDER BY COUNT(s) DESC")
+        List<LocationCountDTO> countShopsByDistrict();
 
         /**
          * Find shops by District Object ID
          */
-        List<Shop> findByDistrictObj_Id(Long districtId);
+        List<Shop> findByDistrict_Id(Long districtId);
 
         /**
          * Find shops by City ID (via District)
          */
-        List<Shop> findByDistrictObj_City_Id(Long cityId);
+        List<Shop> findByDistrict_City_Id(Long cityId);
 
         /**
          * Find shops by active status and City Slug
          */
-        @Query("SELECT s FROM Shop s JOIN s.districtObj d JOIN d.city c WHERE s.isActive = true AND c.slug = :citySlug")
+        @Query("SELECT s FROM Shop s JOIN s.district d JOIN d.city c WHERE s.isActive = true AND c.slug = :citySlug")
         Page<Shop> findByCitySlug(@Param("citySlug") String citySlug, Pageable pageable);
 
         /**
          * Find shops by District ID and Categories
          */
-        List<Shop> findByDistrictObj_IdAndCategoryIn(Long districtId, List<String> categories);
+        List<Shop> findByDistrict_IdAndCategoryIn(Long districtId, List<String> categories);
 
         /**
          * Find new shops by District ID (created after date)
          */
-        List<Shop> findByDistrictObj_IdAndCreatedAtAfter(Long districtId, LocalDateTime date);
+        List<Shop> findByDistrict_IdAndCreatedAtAfter(Long districtId, LocalDateTime date);
 
         /**
          * Find new shops by District ID filtered by Category
          */
-        List<Shop> findByDistrictObj_IdAndCreatedAtAfterAndCategoryIn(Long districtId, LocalDateTime date,
+        List<Shop> findByDistrict_IdAndCreatedAtAfterAndCategoryIn(Long districtId, LocalDateTime date,
                         List<String> categories);
 
         /**

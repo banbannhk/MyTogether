@@ -34,8 +34,8 @@ public class UpdateShopRequest {
     private String address;
     private String addressMm;
 
-    private String township;
-    private String city;
+    @Schema(description = "District ID")
+    private Long districtId;
     private String phone;
 
     private String description;

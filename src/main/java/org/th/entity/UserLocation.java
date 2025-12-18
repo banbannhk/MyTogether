@@ -13,12 +13,10 @@ import java.time.LocalDateTime;
  * Entity for tracking user's frequent locations (home, work, etc.)
  */
 @Entity
-@Table(name = "user_locations",
-    indexes = {
+@Table(name = "user_locations", indexes = {
         @Index(name = "idx_location_user", columnList = "user_id"),
         @Index(name = "idx_location_type", columnList = "location_type")
-    }
-)
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -46,6 +44,7 @@ public class UserLocation {
     @Column(name = "location_type", length = 50)
     private LocationType locationType; // HOME, WORK, FREQUENT, OTHER
 
+    @Builder.Default
     @Column(name = "visit_count")
     private Integer visitCount = 1;
 

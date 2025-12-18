@@ -8,6 +8,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.HttpClientErrorException;
@@ -233,12 +235,13 @@ public class GlobalExceptionHandler {
                         MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
                 log.error("Type mismatch for parameter: {}", ex.getName());
 
-                String message = String.format("Parameter '%s' should be of type %s",
-                                ex.getName(), ex.getRequiredType().getSimpleName());
+                Class<?> requiredType = ex.getRequiredType();
+                String typeName = requiredType != null ? requiredType.getSimpleName() : "unknown";
+                String detail = String.format("Parameter '%s' should be of type '%s'", ex.getName(), typeName);
 
                 ErrorResponse error = new ErrorResponse(
                                 "Invalid Parameter Type",
-                                message,
+                                detail,
                                 request.getRequestURI(),
                                 HttpStatus.BAD_REQUEST.value());
 
@@ -445,6 +448,34 @@ public class GlobalExceptionHandler {
                                 HttpStatus.FORBIDDEN.value());
 
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        }
+
+        @ExceptionHandler(AccessDeniedException.class)
+        public ResponseEntity<ErrorResponse> handleAccessDenied(
+                        AccessDeniedException ex, HttpServletRequest request) {
+                log.error("Access denied: {}", ex.getMessage());
+
+                ErrorResponse error = new ErrorResponse(
+                                "Access Denied",
+                                "You do not have permission to access this resource",
+                                request.getRequestURI(),
+                                HttpStatus.FORBIDDEN.value());
+
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+        }
+
+        @ExceptionHandler(BadCredentialsException.class)
+        public ResponseEntity<ErrorResponse> handleBadCredentials(
+                        BadCredentialsException ex, HttpServletRequest request) {
+                log.error("Bad credentials: {}", ex.getMessage());
+
+                ErrorResponse error = new ErrorResponse(
+                                "Authentication Failed",
+                                "Invalid username or password",
+                                request.getRequestURI(),
+                                HttpStatus.UNAUTHORIZED.value());
+
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
 
         @ExceptionHandler(BusinessException.class)

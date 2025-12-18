@@ -12,7 +12,6 @@ import org.th.dto.MenuCategoryDTO;
 import org.th.dto.UpdateMenuCategoryRequest;
 import org.th.entity.shops.MenuCategory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -48,42 +47,29 @@ public class AdminMenuCategoryController {
     @Operation(summary = "Create Menu Category", description = "Create a new menu category for a shop")
     public ResponseEntity<ApiResponse<MenuCategoryDTO>> createMenuCategory(
             @PathVariable Long shopId,
-            @RequestPart("data") String dataJson,
+            @RequestPart("data") @jakarta.validation.Valid CreateMenuCategoryRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image,
             @RequestPart(value = "galleryPhotos", required = false) List<MultipartFile> galleryPhotos) {
 
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            CreateMenuCategoryRequest request = mapper.readValue(dataJson, CreateMenuCategoryRequest.class);
-
-            MenuCategoryDTO category = adminMenuCategoryService.createMenuCategory(shopId, request, image,
-                    galleryPhotos);
-            return ResponseEntity.ok(ApiResponse.success("Menu category created successfully", category));
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid data format: " + e.getMessage());
-        }
+        MenuCategoryDTO category = adminMenuCategoryService.createMenuCategory(shopId, request, image,
+                galleryPhotos);
+        return ResponseEntity.ok(ApiResponse.success("Menu category created successfully", category));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Update Menu Category", description = "Update an existing menu category")
     public ResponseEntity<ApiResponse<MenuCategoryDTO>> updateMenuCategory(
             @PathVariable Long id,
-            @RequestPart(value = "data", required = false) String dataJson,
+            @RequestPart(value = "data", required = false) @jakarta.validation.Valid UpdateMenuCategoryRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image,
             @RequestPart(value = "galleryPhotos", required = false) List<MultipartFile> galleryPhotos) {
 
-        try {
-            UpdateMenuCategoryRequest request = new UpdateMenuCategoryRequest();
-            if (dataJson != null) {
-                ObjectMapper mapper = new ObjectMapper();
-                request = mapper.readValue(dataJson, UpdateMenuCategoryRequest.class);
-            }
-
-            MenuCategoryDTO category = adminMenuCategoryService.updateMenuCategory(id, request, image, galleryPhotos);
-            return ResponseEntity.ok(ApiResponse.success("Menu category updated successfully", category));
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid data format: " + e.getMessage());
+        if (request == null) {
+            request = new UpdateMenuCategoryRequest();
         }
+
+        MenuCategoryDTO category = adminMenuCategoryService.updateMenuCategory(id, request, image, galleryPhotos);
+        return ResponseEntity.ok(ApiResponse.success("Menu category updated successfully", category));
     }
 
     @DeleteMapping("/{id}")

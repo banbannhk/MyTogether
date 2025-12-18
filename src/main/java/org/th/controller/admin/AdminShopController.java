@@ -13,7 +13,6 @@ import org.th.dto.ShopListDTO;
 import org.th.dto.UpdateShopRequest;
 import org.th.entity.shops.Shop;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
@@ -56,40 +55,27 @@ public class AdminShopController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Create Shop", description = "Create a new shop with optional cover and gallery photos")
     public ResponseEntity<ApiResponse<ShopDetailDTO>> createShop(
-            @RequestPart("data") String dataJson,
+            @RequestPart("data") @jakarta.validation.Valid CreateShopRequest request,
             @RequestPart(value = "coverPhoto", required = false) MultipartFile coverPhoto,
             @RequestPart(value = "galleryPhotos", required = false) List<MultipartFile> galleryPhotos) {
 
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            CreateShopRequest request = mapper.readValue(dataJson, CreateShopRequest.class);
-
-            ShopDetailDTO shop = adminShopService.createShop(request, coverPhoto, galleryPhotos);
-            return ResponseEntity.ok(ApiResponse.success("Shop created successfully", shop));
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid data format: " + e.getMessage());
-        }
+        ShopDetailDTO shop = adminShopService.createShop(request, coverPhoto, galleryPhotos);
+        return ResponseEntity.ok(ApiResponse.success("Shop created successfully", shop));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Update Shop", description = "Update an existing shop")
     public ResponseEntity<ApiResponse<ShopDetailDTO>> updateShop(
             @PathVariable Long id,
-            @RequestPart(value = "data", required = false) String dataJson,
+            @RequestPart(value = "data", required = false) @jakarta.validation.Valid UpdateShopRequest request,
             @RequestPart(value = "coverPhoto", required = false) MultipartFile coverPhoto) {
 
-        try {
-            UpdateShopRequest request = new UpdateShopRequest();
-            if (dataJson != null) {
-                ObjectMapper mapper = new ObjectMapper();
-                request = mapper.readValue(dataJson, UpdateShopRequest.class);
-            }
-
-            ShopDetailDTO shop = adminShopService.updateShop(id, request, coverPhoto);
-            return ResponseEntity.ok(ApiResponse.success("Shop updated successfully", shop));
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid data format: " + e.getMessage());
+        if (request == null) {
+            request = new UpdateShopRequest();
         }
+
+        ShopDetailDTO shop = adminShopService.updateShop(id, request, coverPhoto);
+        return ResponseEntity.ok(ApiResponse.success("Shop updated successfully", shop));
     }
 
     @DeleteMapping("/{id}")

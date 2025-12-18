@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.th.entity.shops.Shop;
 import org.th.entity.enums.ActivityType;
-import org.th.repository.FavoriteRepository;
+import org.th.repository.UserFavoriteRepository;
 import org.th.repository.ShopRepository;
 import org.th.repository.UserActivityRepository;
 import org.th.repository.ShopReviewRepository;
@@ -22,7 +22,7 @@ public class TrendingService {
         private final ShopRepository shopRepository;
         private final UserActivityRepository userActivityRepository;
         private final ShopReviewRepository shopReviewRepository;
-        private final FavoriteRepository favoriteRepository;
+        private final UserFavoriteRepository userFavoriteRepository;
 
         // Weights for scoring
         private static final double VIEW_WEIGHT = 1.0;
@@ -51,17 +51,23 @@ public class TrendingService {
                 LocalDateTime oneDayAgo = now.minusDays(1);
                 LocalDateTime sevenDaysAgo = now.minusDays(7);
 
-                // 1. Bulk Fetch Stats (Maps of ShopId -> Count)
-                java.util.Map<Long, Long> viewsMap = getCountMap(
+                // 1. Bulk Fetch Stats (with different time windows for decay effect)
+                // Views: Last 24 hours (very fresh)
+                java.util.Map<Long, Long> freshViewsMap = getCountMap(
                                 userActivityRepository.countActivityByTargetIdSince(ActivityType.VIEW_SHOP, oneDayAgo));
 
+                // Views: Last 7 days (slower decay)
+                java.util.Map<Long, Long> weeklyViewsMap = getCountMap(
+                                userActivityRepository.countActivityByTargetIdSince(ActivityType.VIEW_SHOP,
+                                                sevenDaysAgo));
+
                 java.util.Map<Long, Long> favoritesMap = getCountMap(
-                                favoriteRepository.countFavoritesByShopSince(sevenDaysAgo));
+                                userFavoriteRepository.countFavoritesByShopSince(sevenDaysAgo));
 
                 java.util.Map<Long, Long> reviewsMap = getCountMap(
                                 shopReviewRepository.countReviewsByShopSince(sevenDaysAgo));
 
-                // Conversions: Directions, Calls, Shares
+                // Conversions: Last 7 days
                 java.util.Map<Long, Long> conversionsMap = getCountMap(
                                 userActivityRepository.countActivitiesByTargetIdSince(
                                                 List.of(ActivityType.CLICK_DIRECTIONS, ActivityType.CLICK_CALL,
@@ -71,13 +77,16 @@ public class TrendingService {
                 // 2. Calculate Scores in Memory
                 for (Shop shop : allShops) {
                         try {
-                                long views = viewsMap.getOrDefault(shop.getId(), 0L);
+                                long freshViews = freshViewsMap.getOrDefault(shop.getId(), 0L);
+                                long weeklyViews = weeklyViewsMap.getOrDefault(shop.getId(), 0L);
                                 long favorites = favoritesMap.getOrDefault(shop.getId(), 0L);
                                 long reviews = reviewsMap.getOrDefault(shop.getId(), 0L);
                                 long conversions = conversionsMap.getOrDefault(shop.getId(), 0L);
 
-                                // Calculate Score
-                                double score = (views * VIEW_WEIGHT) +
+                                // Simplified Decay: fresh views (last 24h) carry much more weight than weekly
+                                // This simulates a "hot" vs "warm" trending effect
+                                double score = (freshViews * VIEW_WEIGHT * 3.0) +
+                                                (weeklyViews * VIEW_WEIGHT) +
                                                 (favorites * FAVORITE_WEIGHT) +
                                                 (reviews * REVIEW_WEIGHT) +
                                                 (conversions * CONVERSION_WEIGHT);

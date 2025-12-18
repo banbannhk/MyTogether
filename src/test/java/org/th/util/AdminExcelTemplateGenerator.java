@@ -17,7 +17,7 @@ public class AdminExcelTemplateGenerator {
             Sheet shopsSheet = workbook.createSheet("Shops");
             createHeader(shopsSheet, new String[] {
                     "Name", "Name (MM)", "Slug", "Category", "Latitude", "Longitude", "Address",
-                    "Name (EN)", "Sub Category", "Township", "City", "Phone", "Email",
+                    "Name (EN)", "Sub Category", "District", "City", "Phone", "Email",
                     "Description", "Description (MM)", "Specialties", "Delivery", "Parking", "Wifi",
                     "Verified", "Active", "Cover Photo", "Address (MM)", "Price Pref", "Halal",
                     "Vegetarian", "Gallery Photos"

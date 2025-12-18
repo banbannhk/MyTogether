@@ -6,7 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.th.dto.feed.*;
 import org.th.entity.User;
 import org.th.entity.enums.*;
-import org.th.entity.shops.Favorite;
+import org.th.entity.UserFavorite;
 import org.th.entity.shops.Shop;
 import org.th.repository.*;
 
@@ -26,11 +26,12 @@ public class PersonalizedFeedService {
 
     private final ShopRepository shopRepository;
     private final UserRepository userRepository;
-    private final FavoriteRepository favoriteRepository;
+    private final UserFavoriteRepository userFavoriteRepository;
+    private final org.th.repository.UserMenuFavoriteRepository userMenuFavoriteRepository; // Injected
     private final TimeContextService timeContextService;
     private final UserSegmentationService userSegmentationService;
     private final UserActivityRepository userActivityRepository;
-    private final RecommendationService recommendationService; // Added dependency
+    private final RecommendationService recommendationService;
 
     private static final int SECTION_LIMIT = 10;
     private static final double DEFAULT_RADIUS_KM = 5.0;
@@ -59,16 +60,32 @@ public class PersonalizedFeedService {
         // 1. Calculate Preferences (User or Device)
         Set<String> preferredCategories = new HashSet<>();
         Set<Long> excludedIds = new HashSet<>();
+        Set<Long> shopsWithMenuFavorites = new HashSet<>(); // New Signal
 
         if (user != null) {
-            // User-based preferences from Favorites
-            List<Favorite> favorites = favoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
+            // A. Shop Favorites
+            List<UserFavorite> favorites = userFavoriteRepository.findByUserIdWithShopAndPhotos(user.getId());
             preferredCategories = favorites.stream()
                     .map(fav -> fav.getShop().getCategory())
                     .collect(Collectors.toSet());
             excludedIds = favorites.stream()
                     .map(fav -> fav.getShop().getId())
                     .collect(Collectors.toSet());
+
+            // B. Menu Item Favorites (New Algorithm Signal)
+            List<org.th.entity.UserMenuFavorite> menuFavorites = userMenuFavoriteRepository
+                    .findByUserIdWithItemAndShop(user.getId());
+            // Boost categories of shops that have favorite items
+            Set<String> menuShopCategories = menuFavorites.stream()
+                    .map(fav -> fav.getMenuItem().getShop().getCategory())
+                    .collect(Collectors.toSet());
+            preferredCategories.addAll(menuShopCategories);
+
+            // Track specific shops
+            shopsWithMenuFavorites = menuFavorites.stream()
+                    .map(fav -> fav.getMenuItem().getShop().getId())
+                    .collect(Collectors.toSet());
+
         } else if (deviceId != null) {
             // Device-based preferences from Activity History
             List<Object[]> topCategories = userActivityRepository.findTopCategoriesByDevice(deviceId);
@@ -83,12 +100,12 @@ public class PersonalizedFeedService {
         }
 
         // Build feed sections
+        // Pass shopsWithMenuFavorites context to sections?
+        // Currently convertToFeedItem is private and called inside build methods.
+        // We can pass the set to build methods.
         FeedSectionDTO forYouNow = buildForYouNowSection(user, latitude, longitude, radius, timeContext, hasLocation,
-                districtId);
-        // as
-        // is?
-        // Or
-        // optimize?
+                districtId, shopsWithMenuFavorites);
+
         FeedSectionDTO trendingNearby = buildTrendingNearbySection(user, latitude, longitude, radius, hasLocation,
                 districtId);
 
@@ -112,7 +129,7 @@ public class PersonalizedFeedService {
         return PersonalizedFeedDTO.builder()
                 .forYouNow(forYouNow)
                 .trendingNearby(trendingNearby)
-                .basedOnFavorites(basedOnFavorites) // Renamed internally but DTO field same
+                .basedOnFavorites(basedOnFavorites)
                 .newShops(newShops)
                 .metadata(metadata)
                 .build();
@@ -123,7 +140,8 @@ public class PersonalizedFeedService {
      * preferences
      */
     private FeedSectionDTO buildForYouNowSection(User user, Double latitude, Double longitude,
-            double radius, TimeContext timeContext, boolean hasLocation, Long districtId) {
+            double radius, TimeContext timeContext, boolean hasLocation, Long districtId,
+            Set<Long> shopsWithMenuFavorites) {
         List<Shop> shops = new ArrayList<>();
 
         // Get time-relevant categories
@@ -135,7 +153,7 @@ public class PersonalizedFeedService {
                     latitude, longitude, radius, timeCategories, SECTION_LIMIT);
         } else if (districtId != null) {
             // Filter by District
-            shops = shopRepository.findByDistrictObj_IdAndCategoryIn(districtId, timeCategories).stream()
+            shops = shopRepository.findByDistrict_IdAndCategoryIn(districtId, timeCategories).stream()
                     .limit(SECTION_LIMIT)
                     .collect(Collectors.toList());
         } else {
@@ -153,7 +171,7 @@ public class PersonalizedFeedService {
         List<ShopFeedItemDTO> feedItems = shops.stream()
                 .map(shop -> convertToFeedItem(shop, latitude, longitude,
                         "Perfect for " + timeContext.name().toLowerCase(),
-                        timeContext.getLabelMm() + " အတွက် အထူးသင့်တော်သည်"))
+                        timeContext.getLabelMm() + " အတွက် အထူးသင့်တော်သည်", shopsWithMenuFavorites))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
@@ -175,7 +193,7 @@ public class PersonalizedFeedService {
 
         // 1. Hierarchical Fallback: Try District First
         if (districtId != null) {
-            shops = shopRepository.findByDistrictObj_Id(districtId);
+            shops = shopRepository.findByDistrict_Id(districtId);
             // Sort by trending score desc
             shops.sort(Comparator.comparing(Shop::getTrendingScore, Comparator.nullsLast(Comparator.reverseOrder())));
             if (shops.size() > SECTION_LIMIT) {
@@ -199,7 +217,7 @@ public class PersonalizedFeedService {
         // Let's defer this change to next step to be safe, or just do it now.
         // I will add User param to buildTrendingNearbySection.
 
-        // 2. Fallback to Radius (Standard Logic) if Township yielded few results
+        // 2. Fallback to Radius (Standard Logic) if District yielded few results
         if (shops.isEmpty()) {
             if (hasLocation) {
                 shops = shopRepository.findNearbyTrendingShops(latitude, longitude, radius, SECTION_LIMIT);
@@ -210,7 +228,7 @@ public class PersonalizedFeedService {
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
                 .map(shop -> convertToFeedItem(shop, latitude, longitude, "Trending in your area",
-                        "သင့်ဒေသတွင် ရေပန်းစားနေသည်"))
+                        "သင့်ဒေသတွင် ရေပန်းစားနေသည်", java.util.Collections.emptySet()))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
@@ -249,7 +267,7 @@ public class PersonalizedFeedService {
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
                 .map(shop -> convertToFeedItem(shop, null, null, "Similar to your interests",
-                        "သင့်စိတ်ဝင်စားမှုများနှင့် ဆင်တူသည်"))
+                        "သင့်စိတ်ဝင်စားမှုများနှင့် ဆင်တူသည်", java.util.Collections.emptySet()))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
@@ -279,7 +297,7 @@ public class PersonalizedFeedService {
             // Filter by District
             if (!preferredCategories.isEmpty()) {
                 // Try to find new shops in district matching preferences first
-                shops = shopRepository.findByDistrictObj_IdAndCreatedAtAfterAndCategoryIn(
+                shops = shopRepository.findByDistrict_IdAndCreatedAtAfterAndCategoryIn(
                         districtId, thirtyDaysAgo, new ArrayList<>(preferredCategories));
 
                 // If not enough/empty, we COULD fallback to generic new shops in district,
@@ -288,10 +306,10 @@ public class PersonalizedFeedService {
                 // For better UX: If specific preference yields nothing, fallback to generic new
                 // in district.
                 if (shops.isEmpty()) {
-                    shops = shopRepository.findByDistrictObj_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
+                    shops = shopRepository.findByDistrict_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
                 }
             } else {
-                shops = shopRepository.findByDistrictObj_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
+                shops = shopRepository.findByDistrict_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
             }
 
             shops = shops.stream().limit(SECTION_LIMIT).collect(Collectors.toList());
@@ -319,7 +337,7 @@ public class PersonalizedFeedService {
 
         List<ShopFeedItemDTO> feedItems = shops.stream()
                 .map(shop -> convertToFeedItem(shop, latitude, longitude, "Recently added",
-                        "မကြာသေးမီက ထည့်သွင်းထားသည်"))
+                        "မကြာသေးမီက ထည့်သွင်းထားသည်", java.util.Collections.emptySet()))
                 .collect(Collectors.toList());
 
         return FeedSectionDTO.builder()
@@ -336,8 +354,18 @@ public class PersonalizedFeedService {
      * Convert Shop entity to ShopFeedItemDTO with badges and relevance
      */
     private ShopFeedItemDTO convertToFeedItem(Shop shop, Double userLat, Double userLon, String matchReason,
-            String matchReasonMm) {
+            String matchReasonMm, Set<Long> shopsWithMenuFavorites) {
         List<ShopBadge> badges = calculateShopBadges(shop);
+
+        // Boost for Menu Favorites
+        boolean hasMenuFavorite = shopsWithMenuFavorites != null && shopsWithMenuFavorites.contains(shop.getId());
+        double relevanceBoost = 0.0;
+
+        if (hasMenuFavorite) {
+            relevanceBoost = 30.0;
+            matchReason = "Has your favorite items";
+            matchReasonMm = "သင်ကြိုက်နှစ်သက်သော ဟင်းလျာများရှိသည်";
+        }
         List<String> badgeLabelsMm = badges.stream().map(ShopBadge::getLabelMm).collect(Collectors.toList());
         Double distance = null;
 
@@ -357,13 +385,13 @@ public class PersonalizedFeedService {
                 .ratingAvg(shop.getRatingAvg())
                 .ratingCount(shop.getRatingCount())
                 .address(shop.getAddress())
-                .district(shop.getTownship())
+                .district(shop.getDistrict() != null ? shop.getDistrict().getNameEn() : null)
                 .latitude(shop.getLatitude())
                 .longitude(shop.getLongitude())
                 .distanceKm(distance)
                 .badges(badges)
                 .badgeLabelsMm(badgeLabelsMm)
-                .relevanceScore(calculateRelevanceScore(shop))
+                .relevanceScore(calculateRelevanceScore(shop) + relevanceBoost)
                 .matchReason(matchReason)
                 .matchReasonMm(matchReasonMm)
                 .hasDelivery(shop.getHasDelivery())

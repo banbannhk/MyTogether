@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.th.entity.User;
 import org.th.entity.enums.UserSegment;
-import org.th.repository.FavoriteRepository;
 import org.th.repository.UserActivityRepository;
 import org.th.repository.UserRepository;
 import org.th.repository.ShopReviewRepository;
@@ -21,7 +20,8 @@ public class UserSegmentationService {
 
     private final UserRepository userRepository;
     private final UserActivityRepository userActivityRepository;
-    private final FavoriteRepository favoriteRepository;
+    private final org.th.repository.UserMenuFavoriteRepository userMenuFavoriteRepository; // Injected
+    // Removed unused FavoriteRepository
     private final ShopReviewRepository shopReviewRepository;
 
     /**
@@ -48,6 +48,11 @@ public class UserSegmentationService {
 
         long totalActivities = engagement.getTotalActivities();
         long totalFavorites = engagement.getTotalFavorites();
+
+        // Add Menu Favorites to total favorites count
+        long totalMenuFavorites = userMenuFavoriteRepository.countByUserId(userId);
+        totalFavorites += totalMenuFavorites;
+
         long totalReviews = engagement.getTotalReviews();
         long recentActivities = engagement.getRecentActivities();
 

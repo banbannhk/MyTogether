@@ -50,7 +50,7 @@ public class ExcelTemplateGenerator {
                 Row headerRow = sheet.createRow(0);
                 String[] headers = {
                                 "name", "nameMm", "slug", "category", "latitude", "longitude", "address",
-                                "nameEn", "subCategory", "township", "city", "phone", "email",
+                                "nameEn", "subCategory", "district", "city", "phone", "email",
                                 "description", "descriptionMm", "specialties",
                                 "hasDelivery", "hasParking", "hasWifi", "isVerified", "isActive", "primaryPhotoUrl"
                 };
