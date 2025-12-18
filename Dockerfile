@@ -17,4 +17,4 @@ EXPOSE 8080
 
 # Environment variables will be injected by Railway
 # Run the application
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-jar", "app.jar"]

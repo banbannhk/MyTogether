@@ -15,8 +15,24 @@ services:
     networks:
       - mytogether-network
 
+  app:
+    build: .
+    container_name: mytogether-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SUPABASE_DB_URL=jdbc:postgresql://db.fldmuhxmtvlcurjllyfl.supabase.co:5432/postgres
+      - SUPABASE_DB_USER=postgres
+      - SUPABASE_DB_PASSWORD=mytogetherteam@123
+    depends_on:
+      - postgres
+    networks:
+      - mytogether-network
+
 volumes:
   postgres_data:
+
 
 networks:
   mytogether-network:
