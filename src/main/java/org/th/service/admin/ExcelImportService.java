@@ -41,15 +41,16 @@ public class ExcelImportService {
     private final org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     // @Transactional - Removed to allow partial success (truncation has its own tx)
-//    public ImportResult fullDatabaseReset(MultipartFile file) throws java.io.IOException {
-//        log.warn("⚠️ STARTING FULL DATABASE RESET ⚠️");
-//
-//        // 1. Truncate all tables
-//        truncateAllTables();
-//
-//        // 2. Import Shops (which includes MenuItems)
-//        return importShopsFromExcel(file);
-//    }
+    // public ImportResult fullDatabaseReset(MultipartFile file) throws
+    // java.io.IOException {
+    // log.warn("⚠️ STARTING FULL DATABASE RESET ⚠️");
+    //
+    // // 1. Truncate all tables
+    // truncateAllTables();
+    //
+    // // 2. Import Shops (which includes MenuItems)
+    // return importShopsFromExcel(file);
+    // }
 
     public void truncateAllTables() {
         new org.springframework.transaction.support.TransactionTemplate(transactionManager).execute(status -> {
@@ -189,6 +190,23 @@ public class ExcelImportService {
         log.info("✅ Shops import complete: {} success, {} errors", successCount, errorCount);
     }
 
+    private BigDecimal getCellValueAsBigDecimal(Cell cell, String columnName) {
+        if (cell == null)
+            return null;
+
+        try {
+            if (cell.getCellType() == CellType.NUMERIC) {
+                return BigDecimal.valueOf(cell.getNumericCellValue());
+            }
+            String value = getCellValueAsString(cell).trim();
+            if (value.isEmpty())
+                return null;
+            return new BigDecimal(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid format for " + columnName + ": " + getCellValueAsString(cell));
+        }
+    }
+
     private Shop parseShopRow(Row row) {
         Shop shop = new Shop();
 
@@ -203,8 +221,11 @@ public class ExcelImportService {
         shop.setSlug(getCellValueAsString(row.getCell(3))); // slug
         shop.setCategory(getCellValueAsString(row.getCell(4))); // category
         shop.setSubCategory(getCellValueAsString(row.getCell(5))); // subCategory
-        shop.setLatitude(new BigDecimal(getCellValueAsString(row.getCell(6)))); // latitude
-        shop.setLongitude(new BigDecimal(getCellValueAsString(row.getCell(7)))); // longitude
+
+        // Robust parsing for Latitude/Longitude
+        shop.setLatitude(getCellValueAsBigDecimal(row.getCell(6), "Latitude"));
+        shop.setLongitude(getCellValueAsBigDecimal(row.getCell(7), "Longitude"));
+
         shop.setAddress(getCellValueAsString(row.getCell(8))); // address
 
         // district and city for District lookup
@@ -238,8 +259,9 @@ public class ExcelImportService {
         // Lookup District Entity by names from Excel
         // Simplified: Just match by district name since all districts are in Bangkok
         if (districtName != null) {
+            String finalDistrictName = districtName;
             districtRepository.findAll().stream()
-                    .filter(d -> d.getNameEn() != null && d.getNameEn().equalsIgnoreCase(districtName))
+                    .filter(d -> d.getNameEn() != null && d.getNameEn().equalsIgnoreCase(finalDistrictName))
                     .findFirst()
                     .ifPresent(shop::setDistrict);
         }
@@ -286,13 +308,21 @@ public class ExcelImportService {
                 item.setName(getCellValueAsString(row.getCell(2)));
                 item.setNameEn(item.getName()); // Auto-fill EN
 
-                String priceStr = getCellValueAsString(row.getCell(3));
-                if (priceStr != null) {
-                    try {
-                        item.setPrice(new BigDecimal(priceStr));
-                    } catch (NumberFormatException e) {
+                try {
+                    item.setPrice(getCellValueAsBigDecimal(row.getCell(3), "Price"));
+                    if (item.getPrice() == null)
                         item.setPrice(BigDecimal.ZERO);
-                    }
+                } catch (IllegalArgumentException e) {
+                    // Fallback or rethrow depending on requirement.
+                    // Previously it defaulted to ZERO on error. Sticking to safer default or
+                    // respecting error?
+                    // User wanted to know EXACTLY what error. So we should probably NOT swallow it
+                    // if it's malformed?
+                    // But original code: catch NumberFormatException -> ZERO.
+                    // New request: "wanna know the error message exactly".
+                    // So I will let the exception propagate to the catch(Exception e) block in the
+                    // loop which logs it.
+                    throw e;
                 }
 
                 item.setCurrency(getCellValueAsString(row.getCell(4)));
