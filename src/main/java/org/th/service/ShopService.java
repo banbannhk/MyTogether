@@ -51,6 +51,31 @@ public class ShopService {
     }
 
     /**
+     * Calculate Bounding Box for geospatial optimization
+     * 
+     * @param lat      User Latitude
+     * @param lon      User Longitude
+     * @param radiusKm Radius in Km
+     * @return double[]{minLat, maxLat, minLon, maxLon}
+     */
+    public static double[] calculateBoundingBox(double lat, double lon, double radiusKm) {
+        // Earth's radius in km
+        final double R = 6371;
+
+        // Latitude boundaries
+        double latChange = Math.toDegrees(radiusKm / R);
+        double minLat = lat - latChange;
+        double maxLat = lat + latChange;
+
+        // Longitude boundaries (depend on latitude)
+        double lonChange = Math.toDegrees(radiusKm / (R * Math.cos(Math.toRadians(lat))));
+        double minLon = lon - lonChange;
+        double maxLon = lon + lonChange;
+
+        return new double[] { minLat, maxLat, minLon, maxLon };
+    }
+
+    /**
      * Get shops near a user's location
      * 
      * @param userLatitude  User's current latitude
@@ -64,8 +89,13 @@ public class ShopService {
         // Validate and normalize radius
         Double radius = normalizeRadius(radiusInKm);
 
+        // Calculate Bounding Box
+        double[] bounds = calculateBoundingBox(userLatitude, userLongitude, radius);
+
         // Query nearby shops (Returns IDs or basic entities)
-        List<Shop> nearbyShops = shopRepository.findNearbyShops(userLatitude, userLongitude, radius);
+        List<Shop> nearbyShops = shopRepository.findNearbyShops(
+                userLatitude, userLongitude, radius,
+                bounds[0], bounds[1], bounds[2], bounds[3]);
 
         // Fetch with photos to be safe for DTO conversion
         List<Shop> initializedShops = fetchWithPhotos(nearbyShops);
@@ -99,8 +129,12 @@ public class ShopService {
 
         Double radius = normalizeRadius(radiusInKm);
 
+        // Calculate Bounding Box
+        double[] bounds = calculateBoundingBox(userLatitude, userLongitude, radius);
+
         List<Shop> nearbyShops = shopRepository.findNearbyShopsByCategory(
-                userLatitude, userLongitude, radius, category);
+                userLatitude, userLongitude, radius, category,
+                bounds[0], bounds[1], bounds[2], bounds[3]);
 
         // Fetch with photos
         List<Shop> initializedShops = fetchWithPhotos(nearbyShops);
@@ -149,8 +183,12 @@ public class ShopService {
 
         Double radius = normalizeRadius(radiusInKm);
 
+        // Calculate Bounding Box
+        double[] bounds = calculateBoundingBox(userLatitude, userLongitude, radius);
+
         List<Shop> ratedShops = shopRepository.findNearbyShopsByRating(
-                userLatitude, userLongitude, radius, minRating);
+                userLatitude, userLongitude, radius, minRating,
+                bounds[0], bounds[1], bounds[2], bounds[3]);
 
         // Fetch with photos
         List<Shop> initializedShops = fetchWithPhotos(ratedShops);

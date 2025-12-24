@@ -73,13 +73,19 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
-                        "WHERE is_active = true" +
+                        "WHERE is_active = true " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY distance", nativeQuery = true)
         List<Shop> findNearbyShops(@Param("latitude") Double latitude,
                         @Param("longitude") Double longitude,
-                        @Param("radiusInKm") Double radiusInKm);
+                        @Param("radiusInKm") Double radiusInKm,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find shops within a radius filtered by category
@@ -96,16 +102,20 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
-                        "WHERE is_active = true AND category = :category" +
-                        ") AS shops_with_distance " +
-                        "WHERE is_active = true AND category = :category" +
+                        "WHERE is_active = true AND category = :category " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY distance", nativeQuery = true)
         List<Shop> findNearbyShopsByCategory(@Param("latitude") Double latitude,
                         @Param("longitude") Double longitude,
                         @Param("radiusInKm") Double radiusInKm,
-                        @Param("category") String category);
+                        @Param("category") String category,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find shops within a radius with minimum rating
@@ -122,14 +132,20 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "cos(radians(longitude) - radians(:longitude)) + sin(radians(:latitude)) * " +
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
-                        "WHERE is_active = true AND rating_avg >= :minRating" +
+                        "WHERE is_active = true AND rating_avg >= :minRating " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY distance", nativeQuery = true)
         List<Shop> findNearbyShopsByRating(@Param("latitude") Double latitude,
                         @Param("longitude") Double longitude,
                         @Param("radiusInKm") Double radiusInKm,
-                        @Param("minRating") Double minRating);
+                        @Param("minRating") Double minRating,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find shops by slug (URL-friendly name)
@@ -280,6 +296,18 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         @Param("excludedIds") List<Long> excludedIds);
 
         /**
+         * Find top shops (Wildcards) NOT in given categories
+         * Used for Diversity Injection
+         */
+        @Query("SELECT s.id FROM Shop s WHERE s.isActive = true " +
+                        "AND s.category NOT IN :categories " +
+                        "AND s.id NOT IN :excludedIds " +
+                        "ORDER BY s.trendingScore DESC, s.ratingAvg DESC")
+        List<Long> findIdsByCategoryNotInAndIdNotIn(
+                        @Param("categories") List<String> categories,
+                        @Param("excludedIds") List<Long> excludedIds);
+
+        /**
          * Find top shops by trending score (fallback for recommendations)
          */
         List<Shop> findTop10ByIsActiveTrueAndIdNotInOrderByTrendingScoreDesc(List<Long> excludedIds);
@@ -294,6 +322,8 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY trending_score DESC, distance ASC " +
@@ -302,7 +332,11 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         @Param("latitude") Double latitude,
                         @Param("longitude") Double longitude,
                         @Param("radiusInKm") Double radiusInKm,
-                        @Param("limit") int limit);
+                        @Param("limit") int limit,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find recently added shops in specific categories
@@ -334,6 +368,8 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true AND category IN :categories " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY distance LIMIT :limit", nativeQuery = true)
@@ -342,7 +378,11 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         @Param("longitude") Double longitude,
                         @Param("radiusInKm") Double radiusInKm,
                         @Param("categories") List<String> categories,
-                        @Param("limit") int limit);
+                        @Param("limit") int limit,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find recent shops with pagination (optimized - no findAll())
@@ -362,6 +402,8 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true AND created_at >= :since " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY created_at DESC, distance ASC " +
@@ -371,7 +413,11 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         @Param("longitude") Double longitude,
                         @Param("radiusInKm") Double radiusInKm,
                         @Param("since") LocalDateTime since,
-                        @Param("limit") int limit);
+                        @Param("limit") int limit,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find nearby recent shops filtered by category
@@ -383,6 +429,8 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "sin(radians(latitude)))) AS distance " +
                         "FROM shops " +
                         "WHERE is_active = true AND created_at >= :since AND category IN :categories " +
+                        "AND latitude BETWEEN :minLat AND :maxLat " +
+                        "AND longitude BETWEEN :minLon AND :maxLon " +
                         ") AS shops_with_distance " +
                         "WHERE distance < :radiusInKm " +
                         "ORDER BY created_at DESC, distance ASC " +
@@ -393,7 +441,11 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         @Param("radiusInKm") Double radiusInKm,
                         @Param("categories") List<String> categories,
                         @Param("since") LocalDateTime since,
-                        @Param("limit") int limit);
+                        @Param("limit") int limit,
+                        @Param("minLat") Double minLat,
+                        @Param("maxLat") Double maxLat,
+                        @Param("minLon") Double minLon,
+                        @Param("maxLon") Double maxLon);
 
         /**
          * Find shops by IDs with photos eagerly loaded (fixes N+1 in DTO conversion)

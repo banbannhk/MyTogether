@@ -24,11 +24,11 @@ public class TrendingService {
         private final ShopReviewRepository shopReviewRepository;
         private final UserFavoriteRepository userFavoriteRepository;
 
-        // Weights for scoring
+        // Weights for scoring (Updated for Quality > Quantity)
         private static final double VIEW_WEIGHT = 1.0;
-        private static final double FAVORITE_WEIGHT = 5.0;
-        private static final double REVIEW_WEIGHT = 10.0;
-        private static final double CONVERSION_WEIGHT = 50.0; // High intent actions
+        private static final double FAVORITE_WEIGHT = 10.0; // Increased from 5.0
+        private static final double REVIEW_WEIGHT = 20.0; // Increased from 10.0
+        private static final double CONVERSION_WEIGHT = 100.0; // Increased from 50.0 (High intent actions)
 
         /**
          * Calculate trending scores for all shops
@@ -85,13 +85,17 @@ public class TrendingService {
 
                                 // Simplified Decay: fresh views (last 24h) carry much more weight than weekly
                                 // This simulates a "hot" vs "warm" trending effect
-                                double score = (freshViews * VIEW_WEIGHT * 3.0) +
+                                double baseScore = (freshViews * VIEW_WEIGHT * 3.0) +
                                                 (weeklyViews * VIEW_WEIGHT) +
                                                 (favorites * FAVORITE_WEIGHT) +
                                                 (reviews * REVIEW_WEIGHT) +
                                                 (conversions * CONVERSION_WEIGHT);
 
-                                shop.setTrendingScore(score);
+                                // Velocity Scoring: Apply Newness Boost
+                                double multiplier = calculateNewnessMultiplier(shop.getCreatedAt());
+                                double finalScore = baseScore * multiplier;
+
+                                shop.setTrendingScore(finalScore);
 
                         } catch (Exception e) {
                                 log.error("Error calculating score for shop {}: {}", shop.getId(), e.getMessage());
@@ -135,5 +139,24 @@ public class TrendingService {
                 // Fetch with photos to ensure no LazyInitializationException in Controller
                 List<Long> ids = trendingShops.stream().map(Shop::getId).collect(java.util.stream.Collectors.toList());
                 return shopRepository.findByIdInWithPhotos(ids);
+        }
+
+        /**
+         * Calculate Newness Multiplier (Velocity Boost)
+         * - < 14 Days: 2.0x (Launch Phase)
+         * - < 30 Days: 1.5x (New Phase)
+         * - Otherwise: 1.0x
+         */
+        private double calculateNewnessMultiplier(LocalDateTime createdAt) {
+                if (createdAt == null) {
+                        return 1.0;
+                }
+                long daysOld = java.time.temporal.ChronoUnit.DAYS.between(createdAt, LocalDateTime.now());
+                if (daysOld <= 14) {
+                        return 2.0;
+                } else if (daysOld <= 30) {
+                        return 1.5;
+                }
+                return 1.0;
         }
 }

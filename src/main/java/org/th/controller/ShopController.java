@@ -299,7 +299,8 @@ public class ShopController {
                         @Parameter(description = "User's longitude") @RequestParam Double lon) {
 
                 org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page,
-                                size);
+                                size, org.springframework.data.domain.Sort.by(
+                                                org.springframework.data.domain.Sort.Direction.DESC, "trendingScore"));
                 org.springframework.data.domain.Slice<ShopListDTO> dtoSlice = shopService.getAllShops(pageable, lat,
                                 lon);
 

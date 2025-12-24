@@ -149,8 +149,10 @@ public class PersonalizedFeedService {
 
         if (hasLocation) {
             // Get nearby shops in relevant categories (optimized - filtering in database)
+            double[] bounds = ShopService.calculateBoundingBox(latitude, longitude, radius);
             shops = shopRepository.findNearbyShopsByCategories(
-                    latitude, longitude, radius, timeCategories, SECTION_LIMIT);
+                    latitude, longitude, radius, timeCategories, SECTION_LIMIT,
+                    bounds[0], bounds[1], bounds[2], bounds[3]);
         } else if (districtId != null) {
             // Filter by District
             shops = shopRepository.findByDistrict_IdAndCategoryIn(districtId, timeCategories).stream()
@@ -220,7 +222,10 @@ public class PersonalizedFeedService {
         // 2. Fallback to Radius (Standard Logic) if District yielded few results
         if (shops.isEmpty()) {
             if (hasLocation) {
-                shops = shopRepository.findNearbyTrendingShops(latitude, longitude, radius, SECTION_LIMIT);
+                double[] bounds = ShopService.calculateBoundingBox(latitude, longitude, radius);
+                shops = shopRepository.findNearbyTrendingShops(
+                        latitude, longitude, radius, SECTION_LIMIT,
+                        bounds[0], bounds[1], bounds[2], bounds[3]);
             } else {
                 shops = shopRepository.findTop10ByOrderByTrendingScoreDesc();
             }
@@ -289,42 +294,20 @@ public class PersonalizedFeedService {
         LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
         List<Shop> shops;
 
-        if (!preferredCategories.isEmpty()) {
-            shops = shopRepository.findRecentShopsByCategories(
-                    new ArrayList<>(preferredCategories),
-                    thirtyDaysAgo).stream().limit(SECTION_LIMIT).collect(Collectors.toList());
+        if (hasLocation) {
+            // 1. Priority: Discovery (Nearby New Shops) - Show EVERYTHING new around me
+            // We ignore preferences here to break the "Filter Bubble" and ensure true
+            // discovery.
+            double[] bounds = ShopService.calculateBoundingBox(latitude, longitude, radius);
+            shops = shopRepository.findNearbyRecentShops(
+                    latitude, longitude, radius, thirtyDaysAgo, SECTION_LIMIT,
+                    bounds[0], bounds[1], bounds[2], bounds[3]);
         } else if (districtId != null) {
-            // Filter by District
-            if (!preferredCategories.isEmpty()) {
-                // Try to find new shops in district matching preferences first
-                shops = shopRepository.findByDistrict_IdAndCreatedAtAfterAndCategoryIn(
-                        districtId, thirtyDaysAgo, new ArrayList<>(preferredCategories));
-
-                // If not enough/empty, we COULD fallback to generic new shops in district,
-                // but "New Shops" usually implies specific relevance.
-                // Let's mix them if needed or just return what we found.
-                // For better UX: If specific preference yields nothing, fallback to generic new
-                // in district.
-                if (shops.isEmpty()) {
-                    shops = shopRepository.findByDistrict_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
-                }
-            } else {
-                shops = shopRepository.findByDistrict_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
-            }
-
+            // 2. Fallback: District New Shops
+            shops = shopRepository.findByDistrict_IdAndCreatedAtAfter(districtId, thirtyDaysAgo);
             shops = shops.stream().limit(SECTION_LIMIT).collect(Collectors.toList());
-        } else if (hasLocation) {
-            // Filter by GPS Radius (Near Me)
-            if (!preferredCategories.isEmpty()) {
-                shops = shopRepository.findNearbyRecentShopsByCategories(
-                        latitude, longitude, radius, new ArrayList<>(preferredCategories), thirtyDaysAgo,
-                        SECTION_LIMIT);
-            } else {
-                shops = shopRepository.findNearbyRecentShops(
-                        latitude, longitude, radius, thirtyDaysAgo, SECTION_LIMIT);
-            }
         } else {
-            // Fallback: just show recent shops
+            // 3. Fallback: Global New Shops
             shops = shopRepository.findRecentShops(
                     thirtyDaysAgo,
                     org.springframework.data.domain.PageRequest.of(0, SECTION_LIMIT)).getContent();

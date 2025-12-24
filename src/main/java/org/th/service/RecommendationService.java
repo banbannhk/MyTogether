@@ -116,11 +116,29 @@ public class RecommendationService {
                     new ArrayList<>(preferredCategories), new ArrayList<>(excludedIds)));
         }
 
-        // Limit results to top 10 distinct matches
-        List<Long> finalIds = candidateIds.stream()
+        // 2a. Personalized Candidates (Target: 70% or 7 items)
+        List<Long> personalizedIds = candidateIds.stream()
                 .distinct()
-                .limit(10)
+                .limit(7)
                 .collect(Collectors.toList());
+
+        // 2b. Diversity Injection (Target: 30% or 3 Wildcard items)
+        List<Long> wildcardIds = new ArrayList<>();
+        if (!preferredCategories.isEmpty()) {
+            // Find high-quality shops NOT in my bubbles
+            wildcardIds = shopRepository.findIdsByCategoryNotInAndIdNotIn(
+                    new ArrayList<>(preferredCategories),
+                    new ArrayList<>(excludedIds)).stream()
+                    .limit(3)
+                    .collect(Collectors.toList());
+        }
+
+        // 3. Combine (Personalized First + Wildcards)
+        List<Long> finalIds = new ArrayList<>(personalizedIds);
+        finalIds.addAll(wildcardIds);
+
+        // Deduplicate just in case (though categories should be mutually exclusive)
+        finalIds = finalIds.stream().distinct().collect(Collectors.toList());
 
         if (finalIds.isEmpty()) {
             // Fallback: Use trending shops optimization

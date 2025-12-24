@@ -386,3 +386,41 @@ Instead of using standard average speeds (which are too optimistic for Bangkok),
 - **10 km:** ~40 mins baseline -> **34 - 46 min**
 
 *Note: This logic is intentionally pessimistic to ensure users are not disappointed by "10 min" promises that take 40 mins.*
+
+---
+
+## 7. 📖 How it Works (Simplified for End Users)
+
+### The "Smart Feed" Explained
+The home screen is not just a random list. It is a smart mix of 4 sections designed to give you exactly what you need, when you need it.
+
+#### 1. For You Now (Context)
+*   **"The Right Food at the Right Time"**
+*   **How it works:** Uses the **Clock**.
+*   **Example:** If you open the app at 8 AM, we show you Coffee & Breakfast spots. If it's 7 PM, we show you Dinner & Drinks. It changes throughout the day to match your life.
+
+#### 2. Trending Nearby (Social)
+*   **"What Everyone Else Likes"**
+*   **How it works:** Uses **Location + Popularity**.
+*   **Example:** This shows you the "hot spots" in your area right now. If a new bubble tea shop becomes famous nearby, you will see it here immediately.
+
+#### 3. New Shops (Discovery)
+*   **"Discover Fresh Spots"**
+*   **How it works:** Uses **Date Added + Location**.
+*   **Example:** This ignores your past history and shows you **everything new** within 5km. This ensures you are never stuck in a "bubble" and always see new businesses opening around you.
+
+#### 4. Based on Favorites (Personal)
+*   **"Things You'll Love"**
+*   **How it works:** Uses **Your History**.
+*   **Example:** If you often like Spicy Noodle shops, this section will find other similar Spicy Noodle shops you haven't tried yet.
+*   **Note:** If you are a new user, this section automatically shows the **Top 10 Best Shops** overall, so it's never empty.
+
+---
+
+### FAQ
+
+**Q: Will I only see food I've liked before?**
+**A: No.** Only section #4 is strictly based on your history. Sections #2 (Trending) and #3 (New Shops) are designed to show you things you *haven't* seen before, ensuring you always discover new places.
+
+**Q: Why does the order change?**
+**A: Because the city changes.** A quiet cafe might be #1 in the morning, but a busy bar will be #1 at night. The app breathes with the city.

@@ -25,7 +25,9 @@ import java.util.List;
         @Index(name = "idx_shop_district_id", columnList = "district_id"),
         @Index(name = "idx_shop_category", columnList = "category"),
         @Index(name = "idx_shop_is_active", columnList = "is_active"),
-        @Index(name = "idx_shop_rating", columnList = "rating_avg DESC")
+        @Index(name = "idx_shop_rating", columnList = "rating_avg DESC"),
+        @Index(name = "idx_shop_lat", columnList = "latitude"),
+        @Index(name = "idx_shop_lon", columnList = "longitude")
 })
 @Data
 @NoArgsConstructor
