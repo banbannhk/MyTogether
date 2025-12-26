@@ -260,6 +260,22 @@ public class GlobalExceptionHandler {
 
         // ============ HTTP/REST EXCEPTIONS ============
 
+        @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+        public ResponseEntity<ErrorResponse> handleNoResourceFound(
+                        org.springframework.web.servlet.resource.NoResourceFoundException ex,
+                        HttpServletRequest request) {
+                log.error("Resource not found: {}", ex.getMessage());
+
+                ErrorResponse error = new ErrorResponse(
+                                ErrorCode.RESOURCE_NOT_FOUND.getCode(),
+                                "Resource Not Found",
+                                ex.getMessage(),
+                                request.getRequestURI(),
+                                HttpStatus.NOT_FOUND.value());
+
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+        }
+
         @ExceptionHandler(HttpMessageNotReadableException.class)
         public ResponseEntity<ErrorResponse> handleMessageNotReadable(
                         HttpMessageNotReadableException ex, HttpServletRequest request) {
