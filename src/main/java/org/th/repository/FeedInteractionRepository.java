@@ -24,7 +24,7 @@ public interface FeedInteractionRepository extends JpaRepository<FeedInteraction
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
 
-    
+
     /**
      * Count interactions by action and section type
      */
