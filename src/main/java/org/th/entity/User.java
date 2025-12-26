@@ -67,6 +67,12 @@ public class User implements UserDetails {
     @Column(name = "spiciness_preference")
     private SpicinessPreference spicinessPreference;
 
+    @Column(name = "agreed_to_terms_at")
+    private LocalDateTime agreedToTermsAt;
+
+    @Column(name = "privacy_policy_version")
+    private String privacyPolicyVersion;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

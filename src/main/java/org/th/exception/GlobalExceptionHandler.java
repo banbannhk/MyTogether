@@ -35,6 +35,7 @@ public class GlobalExceptionHandler {
                 log.error("Device not found: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                "DEVICE_NOT_FOUND",
                                 "Device Not Found",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -49,6 +50,7 @@ public class GlobalExceptionHandler {
                 log.error("User not found: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.USER_NOT_FOUND.getCode(),
                                 "User Not Found",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -77,6 +79,7 @@ public class GlobalExceptionHandler {
                 log.error("Resource not found: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.RESOURCE_NOT_FOUND.getCode(),
                                 "Resource Not Found",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -91,6 +94,7 @@ public class GlobalExceptionHandler {
                 log.error("Duplicate resource: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.DUPLICATE_RESOURCE.getCode(),
                                 "Resource Already Exists",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -119,15 +123,19 @@ public class GlobalExceptionHandler {
                 log.error("Data integrity violation: {}", ex.getMessage(), ex);
 
                 String message = "Data conflict occurred";
+                String code = ErrorCode.DUPLICATE_RESOURCE.getCode();
+
                 if (ex.getMessage() != null) {
                         if (ex.getMessage().contains("duplicate") || ex.getMessage().contains("Duplicate")) {
                                 message = "Resource already exists";
                         } else if (ex.getMessage().contains("foreign key") || ex.getMessage().contains("constraint")) {
                                 message = "Cannot delete resource - it is being used";
+                                code = "CONSTRAINT_VIOLATION";
                         }
                 }
 
                 ErrorResponse error = new ErrorResponse(
+                                code,
                                 "Data Integrity Error",
                                 message,
                                 request.getRequestURI(),
@@ -158,6 +166,7 @@ public class GlobalExceptionHandler {
                 log.error("Validation error: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.VALIDATION_FAILED.getCode(),
                                 "Validation Failed",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -207,6 +216,7 @@ public class GlobalExceptionHandler {
                 log.error("Request validation failed: {}", errors);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.VALIDATION_FAILED.getCode(),
                                 "Validation Failed",
                                 "Request validation failed. Please check your input.",
                                 request.getRequestURI(),
@@ -442,6 +452,7 @@ public class GlobalExceptionHandler {
                 log.error("Unauthorized access: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.UNAUTHORIZED.getCode(),
                                 "Unauthorized Access",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -456,6 +467,7 @@ public class GlobalExceptionHandler {
                 log.error("Access denied: {}", ex.getMessage());
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.FORBIDDEN.getCode(),
                                 "Access Denied",
                                 "You do not have permission to access this resource",
                                 request.getRequestURI(),
@@ -470,6 +482,7 @@ public class GlobalExceptionHandler {
                 log.error("Bad credentials: {}", ex.getMessage());
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.INVALID_CREDENTIALS.getCode(),
                                 "Authentication Failed",
                                 "Invalid username or password",
                                 request.getRequestURI(),
@@ -484,6 +497,7 @@ public class GlobalExceptionHandler {
                 log.error("Business logic error: {}", ex.getMessage(), ex);
 
                 ErrorResponse error = new ErrorResponse(
+                                ErrorCode.BUSINESS_RULE_VIOLATION.getCode(),
                                 "Business Rule Violation",
                                 ex.getMessage(),
                                 request.getRequestURI(),
@@ -515,13 +529,19 @@ public class GlobalExceptionHandler {
                         ApplicationException ex, HttpServletRequest request) {
                 log.error("Application error: {}", ex.getMessage(), ex);
 
+                ErrorCode code = ex.getErrorCode();
+                if (code == null) {
+                        code = ErrorCode.INTERNAL_SERVER_ERROR;
+                }
+
                 ErrorResponse error = new ErrorResponse(
+                                code.getCode(),
                                 "Application Error",
                                 ex.getMessage(),
                                 request.getRequestURI(),
-                                HttpStatus.INTERNAL_SERVER_ERROR.value());
+                                code.getStatus().value());
 
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+                return ResponseEntity.status(code.getStatus().value()).body(error);
         }
 
         // ============ FALLBACK EXCEPTION (MUST BE LAST!) ============

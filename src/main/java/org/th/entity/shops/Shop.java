@@ -56,6 +56,12 @@ public class Shop {
     @Column(name = "sub_category", length = 100)
     private String subCategory;
 
+    @Column(name = "logo_url", length = 500)
+    private String logoUrl;
+
+    @Column(name = "cover_url", length = 500)
+    private String coverUrl;
+
     @Column(nullable = false, precision = 10, scale = 8)
     private BigDecimal latitude;
 

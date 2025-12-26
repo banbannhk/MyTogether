@@ -47,4 +47,6 @@ public interface MenuCategoryRepository extends JpaRepository<MenuCategory, Long
         @Query("SELECT mc FROM MenuCategory mc WHERE mc.shop.id = :shopId")
         org.springframework.data.domain.Page<MenuCategory> findByShopId(@Param("shopId") Long shopId,
                         org.springframework.data.domain.Pageable pageable);
+
+        Optional<MenuCategory> findByShopIdAndNameIgnoreCase(Long shopId, String name);
 }

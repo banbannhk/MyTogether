@@ -24,6 +24,7 @@ public class UpdateMenuItemRequest {
     private Boolean isVegetarian;
     private Boolean isSpicy;
     private Integer displayOrder;
+    private Long subCategoryId;
 
     // Category ID to move item to another category?
     private Long categoryId;

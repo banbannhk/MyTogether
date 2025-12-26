@@ -12,9 +12,11 @@ import org.th.dto.UpdateMenuItemRequest;
 import org.th.entity.shops.MenuCategory;
 import org.th.entity.shops.MenuItem;
 import org.th.entity.shops.MenuItemPhoto;
+import org.th.entity.shops.MenuSubCategory;
 import org.th.exception.ResourceNotFoundException;
 import org.th.repository.MenuCategoryRepository;
 import org.th.repository.MenuItemRepository;
+import org.th.repository.MenuSubCategoryRepository;
 import org.th.service.SupabaseStorageService;
 
 import java.util.Collections;
@@ -28,6 +30,7 @@ public class AdminMenuItemService {
 
     private final MenuItemRepository menuItemRepository;
     private final MenuCategoryRepository menuCategoryRepository;
+    private final MenuSubCategoryRepository menuSubCategoryRepository;
     private final SupabaseStorageService supabaseStorageService;
 
     @Transactional(readOnly = true)
@@ -56,6 +59,16 @@ public class AdminMenuItemService {
         item.setIsVegetarian(request.getIsVegetarian() != null ? request.getIsVegetarian() : false);
         item.setIsSpicy(request.getIsSpicy() != null ? request.getIsSpicy() : false);
         item.setDisplayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0);
+
+        if (request.getSubCategoryId() != null) {
+            MenuSubCategory subCategory = menuSubCategoryRepository.findById(request.getSubCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found"));
+            // Optional: Validate subCategory belongs to category?
+            if (!subCategory.getMenuCategory().getId().equals(category.getId())) {
+                throw new IllegalArgumentException("SubCategory does not belong to the selected Category");
+            }
+            item.setSubCategory(subCategory);
+        }
 
         item = menuItemRepository.save(item);
 
@@ -116,6 +129,21 @@ public class AdminMenuItemService {
             MenuCategory newCategory = menuCategoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("New Category not found"));
             item.setCategory(newCategory);
+            // If checking cross-shop movement, do it here.
+        }
+
+        if (request.getSubCategoryId() != null) {
+            MenuSubCategory subCategory = menuSubCategoryRepository.findById(request.getSubCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("SubCategory not found"));
+            if (!subCategory.getMenuCategory().getId().equals(item.getCategory().getId())) {
+                throw new IllegalArgumentException("SubCategory does not belong to the Item's Category");
+            }
+            item.setSubCategory(subCategory);
+        } else if (request.getSubCategoryId() != null && request.getSubCategoryId() == -1) {
+            // Logic to unassign subcategory if needed? Or just assume non-null means set.
+            // If client sends null, we ignore. If they want to clear, maybe add a flag or
+            // special value.
+            // For now, assume update only sets new value.
         }
 
         if (image != null && !image.isEmpty()) {
@@ -181,6 +209,7 @@ public class AdminMenuItemService {
                 .isVegetarian(item.getIsVegetarian())
                 .isSpicy(item.getIsSpicy())
                 .displayOrder(item.getDisplayOrder())
+                .subCategoryId(item.getSubCategory() != null ? item.getSubCategory().getId() : null)
                 .photos(Collections.emptyList()) // No photos for list view
                 .build();
     }
@@ -215,6 +244,7 @@ public class AdminMenuItemService {
                 .isVegetarian(item.getIsVegetarian())
                 .isSpicy(item.getIsSpicy())
                 .displayOrder(item.getDisplayOrder())
+                .subCategoryId(item.getSubCategory() != null ? item.getSubCategory().getId() : null)
                 .photos(itemPhotos)
                 .build();
     }

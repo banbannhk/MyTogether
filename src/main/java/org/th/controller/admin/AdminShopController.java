@@ -56,10 +56,11 @@ public class AdminShopController {
     @Operation(summary = "Create Shop", description = "Create a new shop with optional cover and gallery photos")
     public ResponseEntity<ApiResponse<ShopDetailDTO>> createShop(
             @RequestPart("data") @jakarta.validation.Valid CreateShopRequest request,
+            @RequestPart(value = "logoPhoto", required = false) MultipartFile logoPhoto,
             @RequestPart(value = "coverPhoto", required = false) MultipartFile coverPhoto,
             @RequestPart(value = "galleryPhotos", required = false) List<MultipartFile> galleryPhotos) {
 
-        ShopDetailDTO shop = adminShopService.createShop(request, coverPhoto, galleryPhotos);
+        ShopDetailDTO shop = adminShopService.createShop(request, logoPhoto, coverPhoto, galleryPhotos);
         return ResponseEntity.ok(ApiResponse.success("Shop created successfully", shop));
     }
 
@@ -68,13 +69,14 @@ public class AdminShopController {
     public ResponseEntity<ApiResponse<ShopDetailDTO>> updateShop(
             @PathVariable Long id,
             @RequestPart(value = "data", required = false) @jakarta.validation.Valid UpdateShopRequest request,
+            @RequestPart(value = "logoPhoto", required = false) MultipartFile logoPhoto,
             @RequestPart(value = "coverPhoto", required = false) MultipartFile coverPhoto) {
 
         if (request == null) {
             request = new UpdateShopRequest();
         }
 
-        ShopDetailDTO shop = adminShopService.updateShop(id, request, coverPhoto);
+        ShopDetailDTO shop = adminShopService.updateShop(id, request, logoPhoto, coverPhoto);
         return ResponseEntity.ok(ApiResponse.success("Shop updated successfully", shop));
     }
 

@@ -14,8 +14,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.th.entity.User;
 import org.th.entity.enums.Role;
 import org.th.repository.UserRepository;
-import org.th.request.LoginRequest;
-import org.th.response.AuthResponse;
+import org.th.dto.mobile.LoginRequest;
+import org.th.dto.mobile.AuthResponse;
 
 import java.util.Map;
 import java.util.UUID;
@@ -63,7 +63,7 @@ public class AdminIntegrationTest {
         // 2. Login to get JWT
         LoginRequest loginRequest = new LoginRequest(username, rawPassword);
 
-        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/mobile/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())

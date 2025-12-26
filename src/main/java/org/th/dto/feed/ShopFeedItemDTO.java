@@ -22,6 +22,8 @@ public class ShopFeedItemDTO {
     private String nameMm;
     private String category;
     private String subCategory;
+    private String logoUrl;
+    private String coverUrl;
     private BigDecimal ratingAvg;
     private Integer ratingCount;
     private String address;

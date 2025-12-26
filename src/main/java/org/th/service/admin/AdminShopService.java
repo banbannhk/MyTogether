@@ -77,6 +77,8 @@ public class AdminShopService {
                 .longitude(shop.getLongitude())
                 .ratingAvg(shop.getRatingAvg())
                 .ratingCount(shop.getRatingCount())
+                .logoUrl(shop.getLogoUrl())
+                .coverUrl(shop.getCoverUrl())
                 .primaryPhotoUrl(primaryPhoto)
                 .hasDelivery(shop.getHasDelivery())
                 .hasParking(shop.getHasParking())
@@ -108,7 +110,7 @@ public class AdminShopService {
      * Create a new shop with optional cover and gallery photos
      */
     @Transactional
-    public ShopDetailDTO createShop(CreateShopRequest request, MultipartFile coverPhoto,
+    public ShopDetailDTO createShop(CreateShopRequest request, MultipartFile logoPhoto, MultipartFile coverPhoto,
             List<MultipartFile> galleryPhotos) {
         log.info("Creating new shop: {}", request.getName());
 
@@ -153,8 +155,16 @@ public class AdminShopService {
 
         shop = shopRepository.save(shop);
 
+        if (logoPhoto != null && !logoPhoto.isEmpty()) {
+            String url = supabaseStorageService.uploadImage(logoPhoto, "shops/" + shop.getId() + "/logo");
+            shop.setLogoUrl(url);
+        }
+
         if (coverPhoto != null && !coverPhoto.isEmpty()) {
             String url = supabaseStorageService.uploadImage(coverPhoto, "shops/" + shop.getId() + "/cover");
+            shop.setCoverUrl(url);
+
+            // Add to photos collection as primary for backward compatibility
             ShopPhoto photo = new ShopPhoto();
             photo.setShop(shop);
             photo.setUrl(url);
@@ -207,7 +217,8 @@ public class AdminShopService {
      * Update an existing shop
      */
     @Transactional
-    public ShopDetailDTO updateShop(Long id, UpdateShopRequest request, MultipartFile coverPhoto) {
+    public ShopDetailDTO updateShop(Long id, UpdateShopRequest request, MultipartFile logoPhoto,
+            MultipartFile coverPhoto) {
         Shop shop = shopRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Shop not found with id: " + id));
 
@@ -264,6 +275,11 @@ public class AdminShopService {
         if (request.getIsVerified() != null)
             shop.setIsVerified(request.getIsVerified());
 
+        if (logoPhoto != null && !logoPhoto.isEmpty()) {
+            String url = supabaseStorageService.uploadImage(logoPhoto, "shops/" + shop.getId() + "/logo");
+            shop.setLogoUrl(url);
+        }
+
         if (coverPhoto != null && !coverPhoto.isEmpty()) {
             // Find existing cover and remove or unset?
             // For now just add as new cover, user can manage photos separately
@@ -271,6 +287,9 @@ public class AdminShopService {
             shop.getPhotos().stream().filter(ShopPhoto::getIsPrimary).forEach(p -> p.setIsPrimary(false));
 
             String url = supabaseStorageService.uploadImage(coverPhoto, "shops/" + shop.getId() + "/cover");
+            shop.setCoverUrl(url);
+
+            // Add to photos collection as primary for backward compatibility
             ShopPhoto photo = new ShopPhoto();
             photo.setShop(shop);
             photo.setUrl(url);
@@ -371,7 +390,10 @@ public class AdminShopService {
                 .isVerified(shop.getIsVerified())
                 .isHalal(shop.getIsHalal())
                 .isVegetarian(shop.getIsVegetarian())
+
                 .pricePreference(shop.getPricePreference())
+                .logoUrl(shop.getLogoUrl())
+                .coverUrl(shop.getCoverUrl())
                 .photos(mapToShopPhotoDTOs(shop.getPhotos()))
                 .operatingHours(mapToOperatingHourDTOs(shop.getOperatingHours()))
                 .createdAt(shop.getCreatedAt())

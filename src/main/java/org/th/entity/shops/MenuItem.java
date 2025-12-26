@@ -29,6 +29,11 @@ public class MenuItem {
     @JoinColumn(name = "category_id")
     private MenuCategory category;
 
+    @ToString.Exclude
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sub_category_id")
+    private MenuSubCategory subCategory;
+
     @Column(nullable = false, length = 255)
     private String name;
 

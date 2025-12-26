@@ -11,7 +11,7 @@ import org.th.dto.ApiResponse;
 import org.th.dto.analytics.*;
 import org.th.entity.enums.FeedSectionType;
 import org.th.service.admin.AnalyticsService;
-import org.th.service.FeedInteractionService;
+import org.th.service.mobile.FeedInteractionService;
 import org.th.service.SessionService;
 
 import java.time.LocalDate;

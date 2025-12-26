@@ -481,4 +481,10 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
                         "LOWER(mi.nameEn) LIKE LOWER(CONCAT('%', :keyword, '%')))")
         List<org.th.entity.shops.MenuItem> searchMenuItems(@Param("keyword") String keyword);
 
+        /**
+         * Find shops that have menu items in specific sub-categories
+         */
+        @Query("SELECT DISTINCT mi.shop FROM MenuItem mi WHERE mi.subCategory.id IN :subCategoryIds")
+        List<Shop> findShopsByMenuSubCategoryIds(@Param("subCategoryIds") java.util.Collection<Long> subCategoryIds);
+
 }

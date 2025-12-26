@@ -49,6 +49,10 @@ public class MenuCategory {
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MenuCategoryPhoto> photos = new ArrayList<>();
 
+    @ToString.Exclude
+    @OneToMany(mappedBy = "menuCategory", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MenuSubCategory> subCategories = new ArrayList<>();
+
     @Column(name = "image_url", length = 500)
     private String imageUrl;
     // ==========================================

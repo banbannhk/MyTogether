@@ -541,7 +541,7 @@ public class ShopService {
      * @param keyword Search keyword
      * @return SearchResponseDTO containing combined results
      */
-    public org.th.dto.SearchResponseDTO searchCombined(String keyword) {
+    public org.th.dto.mobile.SearchResponseDTO searchCombined(String keyword) {
         log.info("Performing combined search for: {}", keyword);
 
         // 1. Search Shops
@@ -591,7 +591,7 @@ public class ShopService {
                 })
                 .collect(Collectors.toList());
 
-        return org.th.dto.SearchResponseDTO.builder()
+        return org.th.dto.mobile.SearchResponseDTO.builder()
                 .shops(shopDTOs)
                 .categories(categoryDTOs)
                 .menus(menuDTOs)
@@ -644,6 +644,8 @@ public class ShopService {
                 .longitude(shop.getLongitude())
                 .ratingAvg(shop.getRatingAvg())
                 .ratingCount(shop.getRatingCount())
+                .logoUrl(shop.getLogoUrl())
+                .coverUrl(shop.getCoverUrl())
                 .primaryPhotoUrl(primaryPhotoUrl)
                 .hasDelivery(shop.getHasDelivery())
                 .hasParking(shop.getHasParking())
@@ -830,12 +832,15 @@ public class ShopService {
                 .ratingAvg(shop.getRatingAvg())
                 .ratingCount(shop.getRatingCount())
                 .viewCount(shop.getViewCount())
+
                 .isActive(shop.getIsActive())
                 .isVerified(shop.getIsVerified())
                 .isHalal(shop.getIsHalal())
                 .isVegetarian(shop.getIsVegetarian())
                 .pricePreference(shop.getPricePreference())
                 .pricePreferenceMm(shop.getPricePreference() != null ? shop.getPricePreference().getLabelMm() : null)
+                .logoUrl(shop.getLogoUrl())
+                .coverUrl(shop.getCoverUrl())
                 .primaryPhotoUrl(shop.getPhotos().stream()
                         .filter(photo -> photo.getIsPrimary() != null && photo.getIsPrimary())
                         .findFirst()

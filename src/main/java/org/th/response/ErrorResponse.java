@@ -16,6 +16,7 @@ public class ErrorResponse {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp;
 
+    private String code;
     private String path;
     private Integer status;
     private Map<String, String> validationErrors;
@@ -26,11 +27,16 @@ public class ErrorResponse {
         this.timestamp = LocalDateTime.now();
     }
 
-    public ErrorResponse(String message, String details, String path, Integer status) {
+    public ErrorResponse(String code, String message, String details, String path, Integer status) {
+        this.code = code;
         this.message = message;
         this.details = details;
         this.path = path;
         this.status = status;
         this.timestamp = LocalDateTime.now();
+    }
+
+    public ErrorResponse(String message, String details, String path, Integer status) {
+        this(null, message, details, path, status);
     }
 }

@@ -65,6 +65,8 @@ public class ShopDetailDTO {
     private org.th.entity.enums.PricePreference pricePreference;
     private String pricePreferenceMm;
 
+    private String logoUrl;
+    private String coverUrl;
     private String primaryPhotoUrl;
     private List<ShopPhotoDTO> photos;
     private List<MenuCategoryDTO> menuCategories;

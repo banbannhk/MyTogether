@@ -26,7 +26,8 @@ public class CreateMenuItemRequest {
 
     private Boolean isAvailable = true;
     private Boolean isPopular = false;
-    private Boolean isVegetarian = false;
-    private Boolean isSpicy = false;
-    private Integer displayOrder = 0;
+    private Boolean isVegetarian;
+    private Boolean isSpicy;
+    private Integer displayOrder;
+    private Long subCategoryId;
 }

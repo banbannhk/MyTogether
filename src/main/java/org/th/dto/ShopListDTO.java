@@ -41,7 +41,9 @@ public class ShopListDTO {
     private BigDecimal ratingAvg;
     private Integer ratingCount;
 
-    private String primaryPhotoUrl;
+    private String logoUrl;
+    private String coverUrl;
+    private String primaryPhotoUrl; // Keep for backward compatibility or map coverUrl to it
 
     private Boolean hasDelivery;
     private Boolean hasParking;
