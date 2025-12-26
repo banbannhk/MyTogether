@@ -31,7 +31,7 @@ public class OpenAPIConfig {
                                                                 .url("https://www.apache.org/licenses/LICENSE-2.0")))
                                 // Add Servers (Order matters! The first one is default)
                                 .servers(List.of(
-                                                new Server().url("https://mytogether-production.up.railway.app")
+                                                new Server().url("https://mytogether-mytogether.up.railway.app")
                                                                 .description("Production Server (Railway)"),
                                                 new Server().url("http://localhost:8080")
                                                                 .description("Local Development Server")))
