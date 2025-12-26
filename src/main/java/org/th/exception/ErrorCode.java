@@ -22,6 +22,11 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", HttpStatus.CONFLICT, "Email already exists"),
     INVALID_CREDENTIALS("INVALID_CREDENTIALS", HttpStatus.UNAUTHORIZED, "Invalid username or password"),
 
+    // Cart
+    CART_MULTI_SHOP_CONFLICT("CART_MULTI_SHOP_CONFLICT", HttpStatus.CONFLICT,
+            "Cart cannot contain items from multiple shops"),
+    CART_ITEM_NOT_FOUND("CART_ITEM_NOT_FOUND", HttpStatus.NOT_FOUND, "Cart item not found"),
+
     // Business Logic
     DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", HttpStatus.CONFLICT, "Resource already exists"),
     BUSINESS_RULE_VIOLATION("BUSINESS_RULE_VIOLATION", HttpStatus.UNPROCESSABLE_ENTITY, "Business rule violation");
