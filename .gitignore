@@ -55,3 +55,9 @@ health_check_all.sh
 test_recs.sh
 
 
+
+### Environment Variables ###
+.env
+.env.*
+*.env
+!.env.example
